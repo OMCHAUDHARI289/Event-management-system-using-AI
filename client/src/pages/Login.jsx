@@ -9,6 +9,7 @@ export default function CollegeEventLogin() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     setMounted(true);
@@ -21,13 +22,13 @@ export default function CollegeEventLogin() {
       // store JWT and user info
       localStorage.setItem('user', JSON.stringify(data));
       console.log('Login successful:', data);
-      navigate('/dashboard');
+      navigate('/admin/dashboard');
     } catch (err) {
       console.error(err?.message || err.response?.data?.message || err);
       alert(err?.message || err.response?.data?.message || 'Login failed');
     }
   };
-  const navigate = useNavigate();
+ 
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col lg:flex-row">
@@ -231,7 +232,10 @@ export default function CollegeEventLogin() {
                   />
                   <span className="ml-2 text-xs sm:text-sm text-white/80 group-hover:text-white transition-colors">Remember me</span>
                 </label>
-                <button className="text-xs sm:text-sm text-white/80 hover:text-white transition-colors duration-300">
+                <button
+                  type="button"
+                  className="text-xs sm:text-sm text-white/80 hover:text-white transition-colors duration-300 bg-transparent hover:bg-transparent focus:outline-none focus:ring-0 border-0"
+                >
                   Forgot Password?
                 </button>
               </div>
@@ -266,7 +270,11 @@ export default function CollegeEventLogin() {
             <div className="text-center mt-6 lg:mt-8 animate-fadeInUp delay-500">
               <p className="text-white/70 text-xs sm:text-sm">
                 Don't have an account?{' '}
-                <button type="button" onClick={() => navigate('/register')} className="text-white font-semibold hover:underline transition-all duration-300">
+                <button
+                  type="button"
+                  onClick={() => navigate('/auth/register')}
+                  className="text-white font-semibold hover:underline transition-all duration-300 bg-transparent hover:bg-transparent focus:outline-none focus:ring-0 border-0"
+                >
                   Register Now
                 </button>
               </p>

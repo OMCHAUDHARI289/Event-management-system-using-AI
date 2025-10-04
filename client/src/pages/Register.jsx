@@ -24,6 +24,8 @@ export default function CollegeEventRegister() {
     }));
   };
 
+  const navigate = useNavigate();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
@@ -40,13 +42,13 @@ export default function CollegeEventRegister() {
   const data = await registerUser(payload);
       localStorage.setItem('user', JSON.stringify(data));
       console.log('Registration successful:', data);
-      navigate('/dashboard');
+      navigate('/admin/dashboard');
     } catch (err) {
       console.error(err.response?.data?.message || err.message || err);
       alert(err.response?.data?.message || err.message || 'Registration failed');
     }
   };
-  const navigate = useNavigate();
+ 
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col lg:flex-row">
@@ -390,7 +392,7 @@ export default function CollegeEventRegister() {
             <div className="text-center mt-6 lg:mt-8 animate-fadeInUp delay-700">
               <p className="text-white/70 text-xs sm:text-sm">
                 Already have an account?{' '}
-                <button type="button" onClick={() => navigate('/')} className="text-white font-semibold hover:underline transition-all duration-300">
+                <button type="button" onClick={() => navigate('/auth/login')} className="text-white font-semibold hover:underline transition-all duration-300">
                   Sign In
                 </button>
               </p>

@@ -1,0 +1,422 @@
+import { useState } from "react";
+import { Calendar, Plus, X, Clock, MapPin, Users, Trash2, Edit, Eye, Filter } from "lucide-react";
+
+function AdminEvents() {
+  const [events, setEvents] = useState([
+    {
+      _id: "1",
+      title: "Tech Fest 2025",
+      description: "Annual technology festival featuring workshops, competitions, and exhibitions",
+      date: "2025-10-15",
+      time: "09:00 AM",
+      venue: "Main Auditorium",
+      capacity: 500,
+      registrations: 320,
+      status: "upcoming",
+      category: "Technical"
+    },
+    {
+      _id: "2",
+      title: "Coding Hackathon",
+      description: "24-hour coding challenge with exciting prizes",
+      date: "2025-10-08",
+      time: "10:00 AM",
+      venue: "Computer Lab",
+      capacity: 100,
+      registrations: 100,
+      status: "ongoing",
+      category: "Competition"
+    },
+    {
+      _id: "3",
+      title: "Cultural Night",
+      description: "An evening of music, dance, and entertainment",
+      date: "2025-09-20",
+      time: "06:00 PM",
+      venue: "Open Ground",
+      capacity: 1000,
+      registrations: 850,
+      status: "past",
+      category: "Cultural"
+    },
+    {
+      _id: "4",
+      title: "Sports Meet 2025",
+      description: "Inter-college sports competition",
+      date: "2025-10-25",
+      time: "08:00 AM",
+      venue: "Sports Complex",
+      capacity: 300,
+      registrations: 150,
+      status: "upcoming",
+      category: "Sports"
+    },
+    {
+      _id: "5",
+      title: "AI Workshop",
+      description: "Hands-on workshop on Artificial Intelligence and Machine Learning",
+      date: "2025-09-15",
+      time: "02:00 PM",
+      venue: "Seminar Hall",
+      capacity: 80,
+      registrations: 80,
+      status: "past",
+      category: "Workshop"
+    }
+  ]);
+
+  const [showForm, setShowForm] = useState(false);
+  const [filter, setFilter] = useState("all");
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    date: "",
+    time: "",
+    venue: "",
+    capacity: "",
+    category: "Technical"
+  });
+
+  const handleSubmit = () => {
+    if (!form.title || !form.date || !form.venue) return;
+    
+    const newEvent = {
+      ...form,
+      _id: Date.now().toString(),
+      registrations: 0,
+      status: "upcoming"
+    };
+    setEvents([...events, newEvent]);
+    setForm({ title: "", description: "", date: "", time: "", venue: "", capacity: "", category: "Technical" });
+    setShowForm(false);
+  };
+
+  const handleDelete = (id) => {
+    setEvents(events.filter(e => e._id !== id));
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case "ongoing": return "from-green-500 to-emerald-500";
+      case "upcoming": return "from-blue-500 to-cyan-500";
+      case "past": return "from-gray-500 to-slate-500";
+      default: return "from-purple-500 to-pink-500";
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    switch(status) {
+      case "ongoing": return "bg-green-500/20 text-green-300";
+      case "upcoming": return "bg-blue-500/20 text-blue-300";
+      case "past": return "bg-gray-500/20 text-gray-300";
+      default: return "bg-purple-500/20 text-purple-300";
+    }
+  };
+
+  const filteredEvents = filter === "all" 
+    ? events 
+    : events.filter(e => e.status === filter);
+
+  const eventCounts = {
+    all: events.length,
+    upcoming: events.filter(e => e.status === "upcoming").length,
+    ongoing: events.filter(e => e.status === "ongoing").length,
+    past: events.filter(e => e.status === "past").length
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 right-10 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl animate-float"></div>
+        <div className="absolute bottom-20 left-10 w-96 h-96 bg-red-500/10 rounded-full blur-3xl animate-float-delayed"></div>
+      </div>
+
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) translateX(0px); }
+          50% { transform: translateY(-20px) translateX(10px); }
+        }
+        @keyframes float-delayed {
+          0%, 100% { transform: translateY(0px) translateX(0px); }
+          50% { transform: translateY(20px) translateX(-10px); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+        .animate-float-delayed {
+          animation: float-delayed 8s ease-in-out infinite;
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+        .animate-slideDown {
+          animation: slideDown 0.4s ease-out forwards;
+        }
+        .animate-scaleIn {
+          animation: scaleIn 0.3s ease-out forwards;
+        }
+      `}</style>
+
+      <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 animate-fadeIn">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
+              <Calendar className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white">Events</h1>
+              <p className="text-white/60">{events.length} total events</p>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+          >
+            {showForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+            <span>{showForm ? 'Cancel' : 'Create Event'}</span>
+          </button>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex flex-wrap gap-3 mb-8 animate-fadeIn">
+          {[
+            { key: "all", label: "All Events", count: eventCounts.all },
+            { key: "upcoming", label: "Upcoming", count: eventCounts.upcoming },
+            { key: "ongoing", label: "Ongoing", count: eventCounts.ongoing },
+            { key: "past", label: "Past", count: eventCounts.past }
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`
+                px-6 py-3 rounded-xl font-semibold transition-all duration-300
+                ${filter === tab.key 
+                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg' 
+                  : 'bg-white/5 text-white/70 hover:bg-white/10 border border-white/10'
+                }
+              `}
+            >
+              {tab.label} <span className="ml-2 text-sm">({tab.count})</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Add Event Form */}
+        {showForm && (
+          <div className="mb-8 animate-slideDown">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+              <h2 className="text-xl font-bold text-white mb-6">Create New Event</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-white/80 text-sm font-medium mb-2">Event Title</label>
+                  <input
+                    type="text"
+                    placeholder="Tech Fest 2025"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-white/80 text-sm font-medium mb-2">Description</label>
+                  <textarea
+                    placeholder="Event description..."
+                    rows="3"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none"
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white/80 text-sm font-medium mb-2">Date</label>
+                  <input
+                    type="date"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white/80 text-sm font-medium mb-2">Time</label>
+                  <input
+                    type="time"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                    value={form.time}
+                    onChange={(e) => setForm({ ...form, time: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white/80 text-sm font-medium mb-2">Venue</label>
+                  <input
+                    type="text"
+                    placeholder="Main Auditorium"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                    value={form.venue}
+                    onChange={(e) => setForm({ ...form, venue: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white/80 text-sm font-medium mb-2">Capacity</label>
+                  <input
+                    type="number"
+                    placeholder="500"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                    value={form.capacity}
+                    onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-white/80 text-sm font-medium mb-2">Category</label>
+                  <select
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  >
+                    <option value="Technical" className="bg-slate-800">Technical</option>
+                    <option value="Cultural" className="bg-slate-800">Cultural</option>
+                    <option value="Sports" className="bg-slate-800">Sports</option>
+                    <option value="Workshop" className="bg-slate-800">Workshop</option>
+                    <option value="Competition" className="bg-slate-800">Competition</option>
+                  </select>
+                </div>
+
+                <button
+                  onClick={handleSubmit}
+                  className="md:col-span-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+                >
+                  Create Event
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Events Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredEvents.map((event, idx) => (
+            <div
+              key={event._id}
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-all duration-300 hover:shadow-2xl hover:shadow-orange-500/20 transform hover:scale-105 animate-scaleIn"
+              style={{ animationDelay: `${idx * 50}ms`, opacity: 0 }}
+            >
+              {/* Event Header with Gradient */}
+              <div className={`bg-gradient-to-r ${getStatusColor(event.status)} p-6 relative`}>
+                <div className="absolute top-4 right-4">
+                  <span className={`${getStatusBadge(event.status)} px-3 py-1 rounded-full text-xs font-semibold uppercase`}>
+                    {event.status}
+                  </span>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2 pr-20">{event.title}</h3>
+                <span className="text-white/80 text-sm">{event.category}</span>
+              </div>
+
+              {/* Event Body */}
+              <div className="p-6 space-y-4">
+                <p className="text-white/70 text-sm line-clamp-2">{event.description}</p>
+
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2 text-white/70">
+                    <Calendar className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm">{new Date(event.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  </div>
+
+                  <div className="flex items-center space-x-2 text-white/70">
+                    <Clock className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm">{event.time}</span>
+                  </div>
+
+                  <div className="flex items-center space-x-2 text-white/70">
+                    <MapPin className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm">{event.venue}</span>
+                  </div>
+                </div>
+
+                {/* Registration Progress */}
+                <div className="pt-4 border-t border-white/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white/70 text-sm flex items-center space-x-1">
+                      <Users className="w-4 h-4" />
+                      <span>Registrations</span>
+                    </span>
+                    <span className="text-white font-semibold text-sm">{event.registrations}/{event.capacity}</span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-2">
+                    <div 
+                      className={`bg-gradient-to-r ${getStatusColor(event.status)} h-2 rounded-full transition-all duration-500`}
+                      style={{ width: `${(event.registrations / event.capacity) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 pt-2">
+                  <button className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
+                    <Eye className="w-4 h-4" />
+                    <span className="text-sm">View</span>
+                  </button>
+                  <button className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
+                    <Edit className="w-4 h-4" />
+                    <span className="text-sm">Edit</span>
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(event._id)}
+                    className="bg-red-500/20 hover:bg-red-500 border border-red-500/30 text-red-400 hover:text-white p-2 rounded-lg transition-all duration-300"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredEvents.length === 0 && (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center animate-fadeIn">
+              <div className="inline-flex items-center justify-center w-24 h-24 bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl mb-6">
+                <Calendar className="w-12 h-12 text-white/70" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">No {filter !== 'all' ? filter : ''} Events</h3>
+              <p className="text-white/60 mb-6">
+                {filter === 'all' ? 'Start by creating your first event' : `No ${filter} events found`}
+              </p>
+              {filter === 'all' && (
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="inline-flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Create Event</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default AdminEvents;
