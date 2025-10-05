@@ -1,8 +1,9 @@
 const express = require("express");
-const { register, login } = require("../controllers/authController");
+const { registerUser, loginUser, updateRole } = require("../controllers/authController");
 const router = express.Router();
 
-router.post("/register", register);
-router.post("/login", login);
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+router.put("/role", updateRole); // only admin should access this later
 
 module.exports = router;

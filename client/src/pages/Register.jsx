@@ -40,9 +40,19 @@ export default function CollegeEventRegister() {
   const payload = { ...formData, name: formData.fullName };
   delete payload.fullName;
   const data = await registerUser(payload);
-      localStorage.setItem('user', JSON.stringify(data));
-      console.log('Registration successful:', data);
-      navigate('/admin/dashboard');
+        // store token and user so route guard can detect role
+        if (data?.token) {
+          localStorage.setItem('token', data.token);
+        }
+        if (data?.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+        } else {
+          localStorage.setItem('user', JSON.stringify(data));
+        }
+        console.log('Registration successful:', data);
+        const role = data?.user?.role || null;
+        if (role === 'student') navigate('/student/dashboard');
+        else navigate('/admin/dashboard');
     } catch (err) {
       console.error(err.response?.data?.message || err.message || err);
       alert(err.response?.data?.message || err.message || 'Registration failed');

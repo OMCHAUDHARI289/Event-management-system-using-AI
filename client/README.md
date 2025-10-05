@@ -1,3 +1,29 @@
+Local dev access from phone
+===========================
+
+To access the client app from another device on your local network (for example, your phone), do the following:
+
+1. Find your machine's LAN IP address (e.g., 192.168.1.100).
+2. In the `client` folder create a file named `.env` (or copy `.env.example`) and set:
+
+VITE_API_URL=http://<YOUR_IP>:5000/api/auth
+
+3. Start the server and client dev servers.
+
+On Windows PowerShell (run from repository root):
+
+cd client; npm run dev
+
+And in a separate terminal for the API server:
+
+cd server; npm run dev
+
+4. Open the client in your phone's browser at http://<YOUR_IP>:5173
+
+Notes:
+- The Vite dev server is configured to bind to 0.0.0.0 (all interfaces) and uses port 5173 by default.
+- The Express API server is configured to bind to 0.0.0.0 and port 5000 by default.
+- Ensure Windows Firewall allows inbound connections on ports 5173 and 5000 or temporarily disable it for testing.
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

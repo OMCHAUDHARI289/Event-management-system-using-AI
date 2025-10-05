@@ -19,15 +19,28 @@ export default function CollegeEventLogin() {
     e.preventDefault();
     try {
       const data = await loginUser({ email, password });
-      // store JWT and user info
-      localStorage.setItem('user', JSON.stringify(data));
+      // store JWT and user info (token is used by route guard)
+      if (data?.token) {
+        localStorage.setItem('token', data.token);
+      }
+      if (data?.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      } else {
+        // fallback: store full response
+        localStorage.setItem('user', JSON.stringify(data));
+      }
       console.log('Login successful:', data);
-      navigate('/admin/dashboard');
+      // navigate based on role if available
+      const role = data?.user?.role || null;
+      if (role === 'student') navigate('/student/dashboard');
+      else navigate('/admin/dashboard');
     } catch (err) {
       console.error(err?.message || err.response?.data?.message || err);
       alert(err?.message || err.response?.data?.message || 'Login failed');
     }
   };
+
+  
  
 
   return (
@@ -249,22 +262,7 @@ export default function CollegeEventLogin() {
               </button>
             </div>
 
-            {/* Divider */}
-            <div className="my-6 lg:my-8 flex items-center animate-fadeInUp delay-500">
-              <div className="flex-1 border-t border-white/20"></div>
-              <span className="px-4 text-white/60 text-xs sm:text-sm">or continue with</span>
-              <div className="flex-1 border-t border-white/20"></div>
-            </div>
-
-            {/* Social Login */}
-            <div className="flex space-x-3 sm:space-x-4 animate-fadeInUp delay-500">
-              <button className="flex-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg lg:rounded-xl py-2.5 lg:py-3 text-white text-sm sm:text-base hover:bg-white/20 transition-all duration-300 transform hover:scale-105">
-                Google
-              </button>
-              <button className="flex-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg lg:rounded-xl py-2.5 lg:py-3 text-white text-sm sm:text-base hover:bg-white/20 transition-all duration-300 transform hover:scale-105">
-                Microsoft
-              </button>
-            </div>
+            {/* (Social login removed) */}
 
             {/* Sign Up Link */}
             <div className="text-center mt-6 lg:mt-8 animate-fadeInUp delay-500">

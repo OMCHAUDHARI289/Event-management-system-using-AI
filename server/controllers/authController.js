@@ -2,50 +2,101 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-exports.register = async (req, res) => {
+// (Social login via Firebase removed)
+
+// Register User
+exports.registerUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, phone, studentId, department, password } = req.body;
 
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ msg: "User already exists" });
+    if (!name || !email || !phone || !studentId || !department || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
 
-    user = new User({ name, email, password: hashedPassword, role });
-    await user.save();
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    res.status(201).json({ msg: "User registered successfully" });
+    const newUser = await User.create({
+      name,
+      email,
+      phone,
+      studentId,
+      department,
+      password: hashedPassword,
+      role: "student", // default, admin can later promote
+    });
+
+    const token = jwt.sign({ id: newUser._id, role: newUser.role }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.status(201).json({
+      message: "Registration successful",
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
+      token,
+    });
   } catch (err) {
-    res.status(500).json({ msg: err.message });
+    console.error("Register error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-exports.login = async (req, res) => {
+// Login User
+exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('Login attempt for:', email);
 
     const user = await User.findOne({ email });
-    if (!user) {
-      console.log('Login failed: user not found for', email);
-      return res.status(400).json({ msg: "Invalid credentials" });
-    }
+    if (!user) return res.status(400).json({ message: "Invalid email or password" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      console.log('Login failed: password mismatch for', email);
-      return res.status(400).json({ msg: "Invalid credentials" });
+    if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
+
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.status(200).json({
+      message: "Login successful",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      token,
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Admin changes role (make club member)
+exports.updateRole = async (req, res) => {
+  try {
+    const { userId, role } = req.body;
+
+    const validRoles = ["student", "clubMember", "admin"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
     }
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    const user = await User.findByIdAndUpdate(userId, { role }, { new: true });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
+    res.json({ message: "Role updated successfully", user });
   } catch (err) {
-    res.status(500).json({ msg: err.message });
+    console.error("Role update error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
