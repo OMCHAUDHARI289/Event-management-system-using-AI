@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Home, Bell, Wifi, Gauge, HelpCircle, LogOut, ChevronDown, Settings } from 'lucide-react';
 
 export default function ModernHeader({ onLogoClick }) {
+  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications] = useState([
@@ -189,7 +191,7 @@ export default function ModernHeader({ onLogoClick }) {
                     </button>
                   </div>
                   <div className="p-2 border-t border-white/10">
-                    <button className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center space-x-3 rounded-lg">
+                    <button className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center space-x-3 rounded-lg" onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); localStorage.removeItem('role'); navigate('/auth/login'); }}>
                       <LogOut className="w-4 h-4" />
                       <span>Logout</span>
                     </button>

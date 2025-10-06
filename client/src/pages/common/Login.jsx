@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Calendar, ArrowRight, GraduationCap } from 'lucide-react';
-import { loginUser } from '../services/authService';
+import { loginUser } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
-import ICEM from '../assets/ICEM.jpg';
+import ICEM from '../../assets/ICEM.jpg';
 
 export default function CollegeEventLogin() {
   const [email, setEmail] = useState('');
@@ -32,6 +32,12 @@ export default function CollegeEventLogin() {
       console.log('Login successful:', data);
       // navigate based on role if available
       const role = data?.user?.role || null;
+      if (role) {
+        localStorage.setItem('role', role);
+      } else {
+        // optional fallback if backend doesn't return role; adjust as needed
+        localStorage.removeItem('role');
+      }
       if (role === 'student') navigate('/student/dashboard');
       else navigate('/admin/dashboard');
     } catch (err) {

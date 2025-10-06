@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, BarChart3, UserCircle, Menu, X, ChevronRight, Bell, Search } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, BarChart3, UserCircle, Menu, X, ChevronRight, Bell, Search, Mail } from 'lucide-react';
 
 export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsOpenProp }) {
   const [activeItem, setActiveItem] = useState('dashboard');
@@ -24,7 +24,8 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
     { id: 'members', label: 'Members', icon: Users, color: 'from-purple-500 to-pink-500' },
     { id: 'events', label: 'Events', icon: Calendar, color: 'from-orange-500 to-red-500' },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'from-green-500 to-emerald-500' },
-    { id: 'profile', label: 'Profile', icon: UserCircle, color: 'from-indigo-500 to-purple-500' }
+    { id: 'profile', label: 'Profile', icon: UserCircle, color: 'from-indigo-500 to-purple-500' },
+    { id: 'email', label: 'Send Email', icon: Mail, color: 'from-pink-500 to-rose-500' }
   ];
 
   return (

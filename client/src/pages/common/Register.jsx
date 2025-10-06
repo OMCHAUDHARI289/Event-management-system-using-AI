@@ -1,63 +1,67 @@
 import React, { useState } from 'react';
 import { Mail, Lock, User, Phone, Calendar, ArrowRight, GraduationCap, BookOpen, Users } from 'lucide-react';
-import icemBg from '../assets/ICEM.jpg';
-import { registerUser } from '../services/authService';
+import icemBg from '../../assets/ICEM.jpg';
+import { registerUser } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 
 export default function CollegeEventRegister() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    phone: '',
-    studentId: '',
-    department: '',
     password: '',
     confirmPassword: '',
     agreeTerms: false
   });
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
+    const { name, type, value, checked } = e.target;
+    setFormData({
+      ...formData,
       [name]: type === 'checkbox' ? checked : value
-    }));
+    });
   };
-
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      return alert('Passwords do not match');
+
+    const name = formData.fullName?.trim();
+    const email = formData.email?.trim();
+    const password = formData.password;
+    const confirmPassword = formData.confirmPassword;
+
+    if (!name || !email || !password) {
+      alert('All fields are required');
+      return;
     }
+
+    if (password !== confirmPassword) {
+      alert('Passwords do not match!');
+      return;
+    }
+
     if (!formData.agreeTerms) {
-      return alert('You must agree to terms and conditions');
+      alert('You must agree to Terms and Conditions');
+      return;
     }
 
     try {
-  // backend expects `name` field; map fullName -> name
-  const payload = { ...formData, name: formData.fullName };
-  delete payload.fullName;
-  const data = await registerUser(payload);
-        // store token and user so route guard can detect role
-        if (data?.token) {
-          localStorage.setItem('token', data.token);
-        }
-        if (data?.user) {
-          localStorage.setItem('user', JSON.stringify(data.user));
-        } else {
-          localStorage.setItem('user', JSON.stringify(data));
-        }
-        console.log('Registration successful:', data);
-        const role = data?.user?.role || null;
-        if (role === 'student') navigate('/student/dashboard');
-        else navigate('/admin/dashboard');
-    } catch (err) {
-      console.error(err.response?.data?.message || err.message || err);
-      alert(err.response?.data?.message || err.message || 'Registration failed');
+      const result = await registerUser({
+        name,
+        email,
+        password
+      });
+      console.log('User registered successfully:', result);
+      alert('Registration successful!');
+      navigate('/auth/login');
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || 'Registration failed';
+      console.error('Registration error:', message);
+      alert(message);
     }
   };
+
  
 
   return (
@@ -246,83 +250,25 @@ export default function CollegeEventRegister() {
                 </div>
               </div>
 
-              {/* Email and Phone - Side by Side on larger screens */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5">
-                <div className="animate-fadeInUp delay-500">
-                  <label className="block text-white/90 text-sm font-medium mb-2">
-                    Email Address
-                  </label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 lg:pl-4 flex items-center pointer-events-none">
-                      <Mail className="w-4 h-4 lg:w-5 lg:h-5 text-white/50 group-focus-within:text-purple-300 transition-colors" />
-                    </div>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 pl-10 lg:pl-12 pr-4 text-white text-sm lg:text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
-                      placeholder="john@college.edu"
-                    />
-                  </div>
-                </div>
-
-                <div className="animate-fadeInUp delay-500">
-                  <label className="block text-white/90 text-sm font-medium mb-2">
-                    Phone Number
-                  </label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 lg:pl-4 flex items-center pointer-events-none">
-                      <Phone className="w-4 h-4 lg:w-5 lg:h-5 text-white/50 group-focus-within:text-purple-300 transition-colors" />
-                    </div>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 pl-10 lg:pl-12 pr-4 text-white text-sm lg:text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
-                      placeholder="+91 1234567890"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Student ID and Department - Side by Side on larger screens */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5">
-                <div className="animate-fadeInUp delay-600">
-                  <label className="block text-white/90 text-sm font-medium mb-2">
-                    Student ID
-                  </label>
-                  <input
-                    type="text"
-                    name="studentId"
-                    value={formData.studentId}
-                    onChange={handleChange}
-                    className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 px-4 text-white text-sm lg:text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
-                    placeholder="STU2025001"
-                  />
-                </div>
-
-                <div className="animate-fadeInUp delay-600">
-                  <label className="block text-white/90 text-sm font-medium mb-2">
-                    Department
-                  </label>
-                  <select
-                    name="department"
-                    value={formData.department}
-                    onChange={handleChange}
-                    className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 px-4 text-white text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
-                  >
-                    <option value="" className="bg-gray-800">Select Department</option>
-                    <option value="cse" className="bg-gray-800">Computer Science</option>
-                    <option value="ece" className="bg-gray-800">Electronics & Communication</option>
-                    <option value="me" className="bg-gray-800">Mechanical Engineering</option>
-                    <option value="ce" className="bg-gray-800">Civil Engineering</option>
-                    <option value="it" className="bg-gray-800">Information Technology</option>
-                    <option value="eee" className="bg-gray-800">Electrical Engineering</option>
-                  </select>
-                </div>
-              </div>
+              {/* Email Address - Full Width */}
+<div className="animate-fadeInUp delay-500">
+  <label className="block text-white/90 text-sm font-medium mb-2">
+    Email Address
+  </label>
+  <div className="relative group">
+    <div className="absolute inset-y-0 left-0 pl-3 lg:pl-4 flex items-center pointer-events-none">
+      <Mail className="w-4 h-4 lg:w-5 lg:h-5 text-white/50 group-focus-within:text-purple-300 transition-colors" />
+    </div>
+    <input
+      type="email"
+      name="email"
+      value={formData.email}
+      onChange={handleChange}
+      className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 pl-10 lg:pl-12 pr-4 text-white text-sm lg:text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
+      placeholder="john@college.edu"
+    />
+  </div>
+</div>
 
               {/* Password Fields - Side by Side on larger screens */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5">

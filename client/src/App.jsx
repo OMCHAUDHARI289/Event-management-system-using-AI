@@ -12,9 +12,10 @@ import AdminMembers from "./pages/admin/Members";
 import AdminEvents from "./pages/admin/Events";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminProfile from "./pages/admin/Profile";
-import NotFound from "./pages/NotFound";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+import AdminEmail from "./pages/admin/Email";
+import NotFound from "./pages/common/NotFound";
+import Login from "./pages/common/Login";
+import Register from "./pages/common/Register";
 
 import StudentDashboard from "./pages/student/Dashboard";
 import StudentAllEvents from "./pages/student/AllEvents";
@@ -24,54 +25,32 @@ import StudentNotifications from "./pages/student/Notifications";
 import StudentProfile from "./pages/student/Profile";
 import StudentFeedback from "./pages/student/Feedback";
 
-// Simple Auth simulation
-// Helper: decode JWT payload (simple, no external lib)
-function getToken() {
-  return localStorage.getItem('token');
-}
-
-function decodeTokenRole(token) {
-  if (!token) return null;
-  try {
-    const payload = token.split('.')[1];
-    if (!payload) return null;
-    // base64url -> base64
-    let base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    // pad with '='
-    while (base64.length % 4) base64 += '=';
-    const decoded = JSON.parse(atob(base64));
-    return decoded.role || null;
-  } catch (e) {
-    return null;
-  }
-}
-
-// Route guard component
+// Route guard component (role-based, no JWT)
 function RequireAuth({ children, allowedRoles = [] }) {
-  const token = getToken();
-  if (!token) return <Navigate to="/auth/login" replace />;
-  const role = decodeTokenRole(token);
+  const role = localStorage.getItem('role'); // directly store role on login
   if (!role) return <Navigate to="/auth/login" replace />;
+
   if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
+    // Redirect to proper dashboard based on role
     if (role === 'student') return <Navigate to="/student/dashboard" replace />;
     return <Navigate to="/admin/dashboard" replace />;
   }
+
   return children;
 }
 
 function App() {
   return (
-  <>
-    <AnimatedCursor />
-    <Routes>
-       
+    <>
+      <AnimatedCursor />
+      <Routes>
         {/* Auth Routes */}
         <Route path="/auth">
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
         </Route>
 
-        {/* Student Routes (require student role) */}
+        {/* Student Routes */}
         <Route path="/student/*" element={
           <RequireAuth allowedRoles={["student"]}>
             <StudentLayout />
@@ -87,7 +66,7 @@ function App() {
           <Route path="feedback" element={<StudentFeedback />} />
         </Route>
 
-        {/* Admin Routes (require admin or clubMember role) */}
+        {/* Admin Routes */}
         <Route path="/admin/*" element={
           <RequireAuth allowedRoles={["admin","clubMember"]}>
             <AdminLayout />
@@ -99,6 +78,7 @@ function App() {
           <Route path="events" element={<AdminEvents />} />
           <Route path="analytics" element={<AdminAnalytics />} />
           <Route path="profile" element={<AdminProfile />} />
+          <Route path="email" element={<AdminEmail />} />
         </Route>
 
         {/* Default Redirect */}

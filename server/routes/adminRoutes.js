@@ -1,14 +1,26 @@
-import express from 'express';
-import authMiddleware from '../middlewares/authMiddleware.js';
-import roleMiddleware from '../middlewares/roleMiddleware.js';
-import adminController from '../controllers/adminController.js';
-
+const express = require('express');
 const router = express.Router();
+const {
+  getAllClubMembers,
+  getAllStudents,
+  addClubMember,
+  deleteClubMember,
+  promoteToClubMember
+} = require('../controllers/adminController');
 
-router.use(authMiddleware); 
-router.use(roleMiddleware(['admin'])); // only admin can access
+// GET all club members
+router.get('/members', getAllClubMembers);
 
-router.post('/members', adminController.addMember); // create club member
-router.get('/members/:department', adminController.getMembersByDepartment); // list members branch-wise
+// GET all registered students
+router.get('/students', getAllStudents);
 
-export default router;
+// POST add a new member/student
+router.post('/members', addClubMember);
+
+// DELETE a member by id
+router.delete('/members/:id', deleteClubMember);
+
+// PUT promote a student to club member
+router.put('/students/:id/promote', promoteToClubMember);
+
+module.exports = router;
