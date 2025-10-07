@@ -94,7 +94,7 @@ const AdminLayout = ({ children }) => {
 
         {/* Main Content - add top padding for header height and shift right on large screens to clear fixed sidebar */}
   <div className={`ml-0 ${isSidebarOpen ? 'lg:ml-80' : 'lg:ml-0'} flex flex-col  transition-all duration-300`}>
-            <div className="relative z-30 -mt-[50%] lg:-mt-[50%] bg-slate-900/50 backdrop-blur-xl border border-white/5 w-full transition-all duration-300">
+            <div className="relative z-30 -mt-[57%] lg:-mt-[57%] bg-slate-900/50 backdrop-blur-xl border border-white/5 w-full transition-all duration-300">
               <Outlet />
             </div>
         </div>

@@ -33,9 +33,9 @@ useEffect(() => {
   const fetchData = async () => {
     try {
       const membersRes = await getClubMembers();
-      setClubMembers(membersRes.members || []); // <- extract the array
+      setClubMembers(membersRes || []); // <- extract the array
       const studentsRes = await getStudents();
-      setStudents(studentsRes.students || []);
+      setStudents(studentsRes|| []);
     } catch (err) {
       console.error("Error fetching data:", err);
     }
@@ -50,22 +50,22 @@ useEffect(() => {
 
     try {
       const newUser = await addMember({
-        fullName: addForm.name,
+        name: addForm.name,
         email: addForm.email,
         password: addForm.password,
-        role: addForm.role
+        role: addForm.role === 'club' ? 'clubMember' : 'student'
       });
 
-      if (addForm.role === "club") {
-        setClubMembers([...clubMembers, newUser]);
-      } else {
-        setStudents([...students, newUser]);
-      }
+      const created = newUser.user || newUser;
+      if ((addForm.role === "club") || created.role === 'clubMember') setClubMembers([...clubMembers, created]);
+      else setStudents([...students, created]);
 
       setAddForm({ name: "", email: "", password: "", role: "student" });
       setShowAddForm(false);
     } catch (err) {
-      console.error("Error adding user:", err);
+      const msg = err?.response?.data?.message || err?.message || 'Failed to add user';
+      console.error("Error adding user:", msg);
+      alert(msg);
     }
   };
 

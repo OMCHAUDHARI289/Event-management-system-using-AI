@@ -1,70 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, Plus, X, Clock, MapPin, Users, Trash2, Edit, Eye, Filter } from "lucide-react";
+import { getEvents, createEvent, deleteEvent } from "../../services/eventService";
 
-function AdminEvents() {
-  const [events, setEvents] = useState([
-    {
-      _id: "1",
-      title: "Tech Fest 2025",
-      description: "Annual technology festival featuring workshops, competitions, and exhibitions",
-      date: "2025-10-15",
-      time: "09:00 AM",
-      venue: "Main Auditorium",
-      capacity: 500,
-      registrations: 320,
-      status: "upcoming",
-      category: "Technical"
-    },
-    {
-      _id: "2",
-      title: "Coding Hackathon",
-      description: "24-hour coding challenge with exciting prizes",
-      date: "2025-10-08",
-      time: "10:00 AM",
-      venue: "Computer Lab",
-      capacity: 100,
-      registrations: 100,
-      status: "ongoing",
-      category: "Competition"
-    },
-    {
-      _id: "3",
-      title: "Cultural Night",
-      description: "An evening of music, dance, and entertainment",
-      date: "2025-09-20",
-      time: "06:00 PM",
-      venue: "Open Ground",
-      capacity: 1000,
-      registrations: 850,
-      status: "past",
-      category: "Cultural"
-    },
-    {
-      _id: "4",
-      title: "Sports Meet 2025",
-      description: "Inter-college sports competition",
-      date: "2025-10-25",
-      time: "08:00 AM",
-      venue: "Sports Complex",
-      capacity: 300,
-      registrations: 150,
-      status: "upcoming",
-      category: "Sports"
-    },
-    {
-      _id: "5",
-      title: "AI Workshop",
-      description: "Hands-on workshop on Artificial Intelligence and Machine Learning",
-      date: "2025-09-15",
-      time: "02:00 PM",
-      venue: "Seminar Hall",
-      capacity: 80,
-      registrations: 80,
-      status: "past",
-      category: "Workshop"
-    }
-  ]);
-
+  function AdminEvents() {
+  const [events, setEvents] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState("all");
   const [form, setForm] = useState({
@@ -74,29 +13,49 @@ function AdminEvents() {
     time: "",
     venue: "",
     capacity: "",
-    category: "Technical"
+    category: "Technical",
   });
 
-  const handleSubmit = () => {
+  // Fetch events
+  const fetchEvents = async () => {
+    try {
+      const data = await getEvents();
+      setEvents(data);
+    } catch (err) {
+      console.error("Error fetching events:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  // Create event
+  const handleSubmit = async () => {
     if (!form.title || !form.date || !form.venue) return;
-    
-    const newEvent = {
-      ...form,
-      _id: Date.now().toString(),
-      registrations: 0,
-      status: "upcoming"
-    };
-    setEvents([...events, newEvent]);
-    setForm({ title: "", description: "", date: "", time: "", venue: "", capacity: "", category: "Technical" });
-    setShowForm(false);
+    try {
+      await createEvent({ ...form, registrations: 0, status: "upcoming" });
+      setForm({ title: "", description: "", date: "", time: "", venue: "", capacity: "", category: "Technical" });
+      setShowForm(false);
+      fetchEvents();
+    } catch (err) {
+      console.error("Error creating event:", err);
+    }
   };
 
-  const handleDelete = (id) => {
-    setEvents(events.filter(e => e._id !== id));
+  // Delete event
+  const handleDelete = async (id) => {
+    try {
+      await deleteEvent(id);
+      fetchEvents();
+    } catch (err) {
+      console.error("Error deleting event:", err);
+    }
   };
 
+  // Helpers
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case "ongoing": return "from-green-500 to-emerald-500";
       case "upcoming": return "from-blue-500 to-cyan-500";
       case "past": return "from-gray-500 to-slate-500";
@@ -105,7 +64,7 @@ function AdminEvents() {
   };
 
   const getStatusBadge = (status) => {
-    switch(status) {
+    switch (status) {
       case "ongoing": return "bg-green-500/20 text-green-300";
       case "upcoming": return "bg-blue-500/20 text-blue-300";
       case "past": return "bg-gray-500/20 text-gray-300";
@@ -113,9 +72,7 @@ function AdminEvents() {
     }
   };
 
-  const filteredEvents = filter === "all" 
-    ? events 
-    : events.filter(e => e.status === filter);
+  const filteredEvents = filter === "all" ? events : events.filter(e => e.status === filter);
 
   const eventCounts = {
     all: events.length,

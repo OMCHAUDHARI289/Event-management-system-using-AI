@@ -1,23 +1,53 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserCircle, Mail, Phone, MapPin, Briefcase, Calendar, Shield, Bell, Lock, Camera, Save, Edit2, Settings, LogOut, Award, Activity } from "lucide-react";
+import { getProfile, updateProfile } from "../../services/adminService";
 
 function AdminProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
-  
+  const [loading, setLoading] = useState(true);
+
   const [profile, setProfile] = useState({
-    name: "John Doe",
-    email: "john.doe@college.edu",
-    phone: "+91 9876543210",
-    role: "Event Administrator",
-    department: "Computer Science",
-    joinDate: "January 2023",
-    location: "Nagpur, Maharashtra",
-    bio: "Passionate about organizing events and bringing the college community together. Managing events since 2023.",
-    eventsOrganized: 48,
-    totalParticipants: 3250,
-    avgRating: 4.7
+    name: "",
+    email: "",
+    phone: "",
+    role: "",
+    department: "",
+    joinDate: "",
+    location: "",
+    bio: "",
+    eventsOrganized: 0,
+    totalParticipants: 0,
+    avgRating: 0
   });
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const raw = localStorage.getItem('user');
+        const user = raw ? JSON.parse(raw) : null;
+        if (user?.id) {
+          const data = await getProfile(user.id);
+          setProfile(prev => ({
+            ...prev,
+            name: data.name || prev.name,
+            email: data.email || prev.email,
+            phone: data.phone || prev.phone,
+            role: data.role || prev.role,
+            department: data.department || prev.department,
+            location: data.location || prev.location,
+            // joinDate is display only; derive from createdAt if present
+            joinDate: data.createdAt ? new Date(data.createdAt).toLocaleDateString() : prev.joinDate,
+          }));
+        }
+      } catch (e) {
+        console.error('Failed to load profile', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const [settings, setSettings] = useState({
     emailNotifications: true,
@@ -46,9 +76,19 @@ function AdminProfile() {
     { action: "Generated monthly report", time: "2 days ago", icon: Activity },
   ];
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Save logic here
+  const handleSave = async () => {
+    try {
+      const raw = localStorage.getItem('user');
+      const user = raw ? JSON.parse(raw) : null;
+      if (!user?.id) return setIsEditing(false);
+      const allowed = (({ name, email, phone, department, location, bio }) => ({ name, email, phone, department, location, bio }))(profile);
+      const updated = await updateProfile(user.id, allowed);
+      setProfile(prev => ({ ...prev, ...updated }));
+      setIsEditing(false);
+    } catch (e) {
+      console.error('Failed to update profile', e);
+      alert('Failed to update profile');
+    }
   };
 
   return (
@@ -60,34 +100,14 @@ function AdminProfile() {
       </div>
 
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) translateX(0px); }
-          50% { transform: translateY(-20px) translateX(10px); }
-        }
-        @keyframes float-delayed {
-          0%, 100% { transform: translateY(0px) translateX(0px); }
-          50% { transform: translateY(20px) translateX(-10px); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-        .animate-float-delayed {
-          animation: float-delayed 8s ease-in-out infinite;
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out forwards;
-        }
-        .animate-scaleIn {
-          animation: scaleIn 0.3s ease-out forwards;
-        }
+        @keyframes float { 0%, 100% { transform: translateY(0px) translateX(0px); } 50% { transform: translateY(-20px) translateX(10px); } }
+        @keyframes float-delayed { 0%, 100% { transform: translateY(0px) translateX(0px); } 50% { transform: translateY(20px) translateX(-10px); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-delayed { animation: float-delayed 8s ease-in-out infinite; }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+        .animate-scaleIn { animation: scaleIn 0.3s ease-out forwards; }
         .delay-100 { animation-delay: 0.1s; opacity: 0; }
         .delay-200 { animation-delay: 0.2s; opacity: 0; }
         .delay-300 { animation-delay: 0.3s; opacity: 0; }

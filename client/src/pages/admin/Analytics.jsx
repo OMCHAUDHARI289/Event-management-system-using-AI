@@ -1,19 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BarChart3, TrendingUp, Star, MessageSquare, Download, Calendar, Users, Eye, ThumbsUp, Award } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { getAnalytics } from "../../services/adminService";
 
 function AdminAnalytics() {
   const [selectedPeriod, setSelectedPeriod] = useState("month");
 
-  // Event Statistics Data
-  const eventStats = [
-    { month: "Jan", events: 8, registrations: 450, attendance: 380 },
-    { month: "Feb", events: 12, registrations: 680, attendance: 590 },
-    { month: "Mar", events: 10, registrations: 520, attendance: 480 },
-    { month: "Apr", events: 15, registrations: 890, attendance: 750 },
-    { month: "May", events: 9, registrations: 420, attendance: 380 },
-    { month: "Jun", events: 18, registrations: 1100, attendance: 950 }
-  ];
+  const [eventStats, setEventStats] = useState([]);
 
   // Event Popularity Data
   const popularityData = [
@@ -69,40 +62,37 @@ function AdminAnalytics() {
   ];
 
   // Summary Stats
-  const summaryStats = [
-    { 
-      title: "Total Events", 
-      value: "72", 
-      change: "+15%",
-      trend: "up",
-      icon: Calendar,
-      color: "from-blue-500 to-cyan-500"
-    },
-    { 
-      title: "Total Registrations", 
-      value: "4,060", 
-      change: "+23%",
-      trend: "up",
-      icon: Users,
-      color: "from-purple-500 to-pink-500"
-    },
-    { 
-      title: "Avg. Attendance", 
-      value: "85%", 
-      change: "+5%",
-      trend: "up",
-      icon: Eye,
-      color: "from-green-500 to-emerald-500"
-    },
-    { 
-      title: "Avg. Rating", 
-      value: "4.6", 
-      change: "+0.3",
-      trend: "up",
-      icon: Star,
-      color: "from-orange-500 to-red-500"
-    }
-  ];
+  const [summaryStats, setSummaryStats] = useState([
+    { title: "Total Events", value: "-", change: "", trend: "up", icon: Calendar, color: "from-blue-500 to-cyan-500" },
+    { title: "Total Users", value: "-", change: "", trend: "up", icon: Users, color: "from-purple-500 to-pink-500" },
+    { title: "Students", value: "-", change: "", trend: "up", icon: Users, color: "from-green-500 to-emerald-500" },
+    { title: "Club Members", value: "-", change: "", trend: "up", icon: Star, color: "from-orange-500 to-red-500" }
+  ]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await getAnalytics();
+        const months = (data?.monthly || []).map(m => ({
+          month: m.month.slice(5),
+          events: m.events,
+          registrations: m.registrations,
+          attendance: Math.round((m.registrations || 0) * 0.8)
+        }));
+        setEventStats(months);
+        const next = [...summaryStats];
+        next[0].value = String(data?.summary?.totalEvents ?? 0);
+        next[1].value = String(data?.summary?.totalUsers ?? 0);
+        next[2].value = String(data?.summary?.totalStudents ?? 0);
+        next[3].value = String(data?.summary?.totalClubMembers ?? 0);
+        setSummaryStats(next);
+      } catch (e) {
+        console.error('Failed to load analytics', e);
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">

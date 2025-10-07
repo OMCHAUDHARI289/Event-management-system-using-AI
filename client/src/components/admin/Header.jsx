@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Bell, Wifi, Gauge, HelpCircle, LogOut, ChevronDown, Settings } from 'lucide-react';
 
@@ -13,6 +13,25 @@ export default function ModernHeader({ onLogoClick }) {
   ]);
 
   const unreadCount = notifications.filter(n => n.unread).length;
+
+  // Derive user display from localStorage
+  const { displayName, initials, email } = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('user');
+      const parsed = raw ? JSON.parse(raw) : null;
+      const name = parsed?.name || 'Admin';
+      const mail = parsed?.email || 'admin@example.com';
+      const init = name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(s => s[0]?.toUpperCase() || '')
+        .join('') || 'AD';
+      return { displayName: name, initials: init, email: mail };
+    } catch {
+      return { displayName: 'Admin', initials: 'AD', email: 'admin@example.com' };
+    }
+  }, []);
 
   return (
     <header className="relative bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-b border-white/10 backdrop-blur-xl pl-0 lg:pl-80">
@@ -70,7 +89,7 @@ export default function ModernHeader({ onLogoClick }) {
           {/* Right Section - Actions */}
           <div className="flex items-center space-x-2 sm:space-x-3">
             {/* Home Button */}
-            <button className="group relative p-2 sm:px-4 sm:py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/10 hover:border-white/20">
+            <button onClick={() => navigate('/admin/dashboard')} className="group relative p-2 sm:px-4 sm:py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/10 hover:border-white/20">
               <div className="flex items-center space-x-2">
                 <Home className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
                 <span className="hidden sm:inline text-sm font-medium text-white/70 group-hover:text-white transition-colors">Home</span>
@@ -167,9 +186,9 @@ export default function ModernHeader({ onLogoClick }) {
                 className="flex items-center space-x-2 p-2 pl-3 pr-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/10 hover:border-white/20 group"
               >
                 <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-white">JD</span>
+                  <span className="text-sm font-bold text-white">{initials}</span>
                 </div>
-                <span className="hidden sm:inline text-sm font-medium text-white/90">John</span>
+                <span className="hidden sm:inline text-sm font-medium text-white/90">{displayName.split(' ')[0]}</span>
                 <ChevronDown className={`w-4 h-4 text-white/70 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''}`} />
               </button>
 
@@ -177,8 +196,8 @@ export default function ModernHeader({ onLogoClick }) {
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-56 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-slideDown z-50">
                   <div className="p-4 border-b border-white/10">
-                    <p className="text-sm font-semibold text-white">John Doe</p>
-                    <p className="text-xs text-white/60">john@college.edu</p>
+                    <p className="text-sm font-semibold text-white">{displayName}</p>
+                    <p className="text-xs text-white/60">{email}</p>
                   </div>
                   <div className="py-2">
                     <button className="w-full px-4 py-2 text-left text-sm text-white/80 hover:bg-white/5 hover:text-white transition-colors flex items-center space-x-3">

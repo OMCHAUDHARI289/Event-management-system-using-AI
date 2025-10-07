@@ -1,44 +1,33 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Bar } from "recharts";
 import { BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Users, Calendar, CalendarCheck, DollarSign, TrendingUp, ArrowUpRight } from "lucide-react";
+import { getAdminStats } from "../../services/adminService";
 
 const AdminDashboard = () => {
-  // Example Stats
-  const stats = [
-    { 
-      title: "Total Users", 
-      value: "1,200", 
-      icon: Users, 
-      color: "from-blue-500 to-cyan-500",
-      change: "+12%",
-      trend: "up"
-    },
-    { 
-      title: "Total Events", 
-      value: "45", 
-      icon: Calendar, 
-      color: "from-purple-500 to-pink-500",
-      change: "+8%",
-      trend: "up"
-    },
-    { 
-      title: "Scheduled Events", 
-      value: "8", 
-      icon: CalendarCheck, 
-      color: "from-orange-500 to-red-500",
-      change: "+3%",
-      trend: "up"
-    },
-    { 
-      title: "Payments Collected", 
-      value: "₹85,000", 
-      icon: DollarSign, 
-      color: "from-green-500 to-emerald-500",
-      change: "+25%",
-      trend: "up"
-    },
-  ];
+  const [stats, setStats] = useState([
+    { title: "Total Users", value: "-", icon: Users, color: "from-blue-500 to-cyan-500", change: "", trend: "up" },
+    { title: "Total Events", value: "-", icon: Calendar, color: "from-purple-500 to-pink-500", change: "", trend: "up" },
+    { title: "Scheduled Events", value: "-", icon: CalendarCheck, color: "from-orange-500 to-red-500", change: "", trend: "up" },
+    { title: "Payments Collected", value: "₹0", icon: DollarSign, color: "from-green-500 to-emerald-500", change: "", trend: "up" },
+  ]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await getAdminStats();
+        const next = [...stats];
+        next[0].value = String(data?.users?.total ?? 0);
+        next[1].value = String(data?.events?.total ?? 0);
+        next[2].value = String(data?.events?.upcoming ?? 0);
+        setStats(next);
+      } catch (e) {
+        console.error("Failed to load admin stats", e);
+      }
+    };
+    fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Example Chart Data
   const eventStats = [
