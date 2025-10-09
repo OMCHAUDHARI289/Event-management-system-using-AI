@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const sendEmail = require("../config/email");
+const jwt = require("jsonwebtoken");
 
 
 exports.register = async (req, res) => {
@@ -57,14 +58,17 @@ exports.loginUser = async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ message: "Invalid email or password" });
 
-    // skip JWT — just return user
+    // issue JWT for protected routes
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
     res.status(200).json({
       message: "Login successful",
+      token,
       user: {
         id: user._id,
         name: user.name,
         role: user.role,
-        branch: user.branch,
+        email: user.email,
       },
     });
   } catch (error) {

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calendar, Clock, MapPin, Users, Search, Filter, Star, Ticket, Heart, Share2, TrendingUp, Award, Zap } from "lucide-react";
+import { getStudentEvents } from "../../services/studentService";
 
 function StudentAllEvents() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -7,145 +8,34 @@ function StudentAllEvents() {
   const [sortBy, setSortBy] = useState("date");
   const [viewMode, setViewMode] = useState("grid");
 
-  // All Events
-  const allEvents = [
-    {
-      id: 1,
-      title: "Tech Fest 2025",
-      description: "Annual technology festival featuring workshops, competitions, and exhibitions. Join us for 3 days of tech innovation.",
-      date: "2025-10-15",
-      time: "09:00 AM",
-      venue: "Main Auditorium",
-      category: "Technical",
-      image: "🎪",
-      capacity: 500,
-      registered: 320,
-      price: "Free",
-      rating: 4.8,
-      trending: true,
-      featured: true,
-      tags: ["Workshop", "Competition", "Networking"]
-    },
-    {
-      id: 2,
-      title: "Coding Hackathon",
-      description: "24-hour coding challenge with exciting prizes. Build innovative solutions and win amazing rewards.",
-      date: "2025-10-08",
-      time: "10:00 AM",
-      venue: "Computer Lab",
-      category: "Competition",
-      image: "💻",
-      capacity: 100,
-      registered: 100,
-      price: "₹200",
-      rating: 4.6,
-      trending: true,
-      featured: false,
-      tags: ["Coding", "Prize", "Team Event"]
-    },
-    {
-      id: 3,
-      title: "Cultural Night",
-      description: "An evening of music, dance, and entertainment. Showcase your talent and enjoy performances.",
-      date: "2025-10-20",
-      time: "06:00 PM",
-      venue: "Open Ground",
-      category: "Cultural",
-      image: "🎭",
-      capacity: 1000,
-      registered: 750,
-      price: "₹50",
-      rating: 4.9,
-      trending: false,
-      featured: true,
-      tags: ["Performance", "Entertainment", "Music"]
-    },
-    {
-      id: 4,
-      title: "AI Workshop",
-      description: "Hands-on workshop on Artificial Intelligence and Machine Learning with industry experts.",
-      date: "2025-10-18",
-      time: "02:00 PM",
-      venue: "Seminar Hall",
-      category: "Workshop",
-      image: "🤖",
-      capacity: 80,
-      registered: 65,
-      price: "₹300",
-      rating: 4.7,
-      trending: true,
-      featured: false,
-      tags: ["AI", "ML", "Learning"]
-    },
-    {
-      id: 5,
-      title: "Sports Meet 2025",
-      description: "Inter-college sports competition featuring multiple sports. Show your athletic prowess!",
-      date: "2025-10-25",
-      time: "08:00 AM",
-      venue: "Sports Complex",
-      category: "Sports",
-      image: "⚽",
-      capacity: 300,
-      registered: 150,
-      price: "₹100",
-      rating: 4.5,
-      trending: false,
-      featured: false,
-      tags: ["Competition", "Athletics", "Team"]
-    },
-    {
-      id: 6,
-      title: "Photography Workshop",
-      description: "Learn professional photography techniques from experts. Bring your camera and creativity!",
-      date: "2025-10-22",
-      time: "03:00 PM",
-      venue: "Art Room",
-      category: "Workshop",
-      image: "📷",
-      capacity: 50,
-      registered: 45,
-      price: "₹250",
-      rating: 4.8,
-      trending: false,
-      featured: false,
-      tags: ["Photography", "Creative", "Hands-on"]
-    },
-    {
-      id: 7,
-      title: "Startup Conclave",
-      description: "Meet entrepreneurs, pitch your ideas, and learn about startups and innovation.",
-      date: "2025-10-30",
-      time: "10:00 AM",
-      venue: "Conference Hall",
-      category: "Technical",
-      image: "🚀",
-      capacity: 200,
-      registered: 120,
-      price: "Free",
-      rating: 4.7,
-      trending: true,
-      featured: true,
-      tags: ["Startup", "Innovation", "Networking"]
-    },
-    {
-      id: 8,
-      title: "Dance Competition",
-      description: "Show off your dance moves and compete for the title. Solo and group categories available.",
-      date: "2025-11-05",
-      time: "05:00 PM",
-      venue: "Main Stage",
-      category: "Cultural",
-      image: "💃",
-      capacity: 150,
-      registered: 90,
-      price: "₹150",
-      rating: 4.6,
-      trending: false,
-      featured: false,
-      tags: ["Dance", "Competition", "Performance"]
-    }
-  ];
+  const [events, setEvents] = useState([]);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const list = await getStudentEvents();
+        setEvents(list.map(e => ({
+          id: e._id,
+          title: e.title,
+          description: e.description || "",
+          date: e.date,
+          time: e.time,
+          venue: e.venue,
+          category: e.category,
+          image: "🎫",
+          capacity: e.capacity,
+          registered: e.registrations,
+          price: "Free",
+          rating: 4.7,
+          trending: false,
+          featured: false,
+          tags: []
+        })));
+      } catch (e) {
+        // ignore
+      }
+    };
+    load();
+  }, []);
 
   const categories = [
     { id: "all", label: "All Events", icon: Calendar },
@@ -156,7 +46,7 @@ function StudentAllEvents() {
     { id: "Competition", label: "Competition", icon: TrendingUp }
   ];
 
-  const filteredEvents = allEvents
+  const filteredEvents = events
     .filter(event => 
       (categoryFilter === "all" || event.category === categoryFilter) &&
       (searchQuery === "" || event.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -283,7 +173,7 @@ function StudentAllEvents() {
               <span>Featured Events</span>
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {allEvents.filter(e => e.featured).slice(0, 2).map((event, idx) => (
+              {events.filter(e => e.featured).slice(0, 2).map((event, idx) => (
                 <div
                   key={event.id}
                   className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/20 transform hover:scale-105 animate-scaleIn"

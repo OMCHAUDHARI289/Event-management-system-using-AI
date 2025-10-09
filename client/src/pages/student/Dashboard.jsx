@@ -1,96 +1,61 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getStudentEvents, getMyEvents } from "../../services/studentService";
 import { Calendar, Clock, MapPin, Users, Award, TrendingUp, CheckCircle, XCircle, Bell, Search, Filter, Star, Ticket } from "lucide-react";
 
 function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [registeredEvents, setRegisteredEvents] = useState([]);
+  const [availableEvents, setAvailableEvents] = useState([]);
 
-  // Registered Events
-  const registeredEvents = [
-    {
-      id: 1,
-      title: "Tech Fest 2025",
-      date: "2025-10-15",
-      time: "09:00 AM",
-      venue: "Main Auditorium",
-      status: "upcoming",
-      category: "Technical",
-      image: "🎪",
-      participants: 320,
-      attended: false
-    },
-    {
-      id: 2,
-      title: "Coding Hackathon",
-      date: "2025-10-08",
-      time: "10:00 AM",
-      venue: "Computer Lab",
-      status: "ongoing",
-      category: "Competition",
-      image: "💻",
-      participants: 100,
-      attended: false
-    },
-    {
-      id: 3,
-      title: "Cultural Night",
-      date: "2025-09-20",
-      time: "06:00 PM",
-      venue: "Open Ground",
-      status: "completed",
-      category: "Cultural",
-      image: "🎭",
-      participants: 850,
-      attended: true
-    }
-  ];
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [events, my] = await Promise.all([
+          getStudentEvents(),
+          getMyEvents().catch(() => [])
+        ]);
+        // normalize
+        setAvailableEvents(events.map(e => ({
+          id: e._id,
+          title: e.title,
+          date: e.date,
+          time: e.time,
+          venue: e.venue,
+          category: e.category,
+          image: "🎫",
+          capacity: e.capacity,
+          registered: e.registrations,
+          price: "Free"
+        })));
+        setRegisteredEvents((my || []).map(e => ({
+          id: e._id,
+          title: e.title,
+          date: e.date,
+          time: e.time,
+          venue: e.venue,
+          status: e.status === 'past' ? 'completed' : e.status,
+          category: e.category,
+          image: "📌",
+          participants: e.registrations,
+          attended: e.status === 'past'
+        })));
+      } catch (e) {
+        // ignore
+      }
+    };
+    load();
+  }, []);
 
-  // Available Events
-  const availableEvents = [
-    {
-      id: 4,
-      title: "AI Workshop",
-      date: "2025-10-20",
-      time: "02:00 PM",
-      venue: "Seminar Hall",
-      category: "Workshop",
-      image: "🤖",
-      capacity: 80,
-      registered: 65,
-      price: "Free"
-    },
-    {
-      id: 5,
-      title: "Sports Meet 2025",
-      date: "2025-10-25",
-      time: "08:00 AM",
-      venue: "Sports Complex",
-      category: "Sports",
-      image: "⚽",
-      capacity: 300,
-      registered: 150,
-      price: "₹100"
-    },
-    {
-      id: 6,
-      title: "Photography Workshop",
-      date: "2025-10-18",
-      time: "03:00 PM",
-      venue: "Art Room",
-      category: "Workshop",
-      image: "📷",
-      capacity: 50,
-      registered: 45,
-      price: "₹200"
-    }
-  ];
-
-  // Stats
-  const stats = [
-    { label: "Events Attended", value: 12, icon: CheckCircle, color: "from-blue-500 to-cyan-500" },
-    { label: "Upcoming Events", value: 5, icon: Calendar, color: "from-purple-500 to-pink-500" },
-    { label: "Certificates Earned", value: 8, icon: Award, color: "from-orange-500 to-red-500" },
-  ];
+  const stats = useMemo(() => {
+    const attended = registeredEvents.filter(e => e.attended).length;
+    const upcoming = availableEvents.filter(e => new Date(e.date) > new Date()).length;
+    return [
+      { label: "Events Attended", value: attended, icon: CheckCircle, color: "from-blue-500 to-cyan-500" },
+      { label: "Upcoming Events", value: upcoming, icon: Calendar, color: "from-purple-500 to-pink-500" },
+      { label: "Certificates Earned", value: attended, icon: Award, color: "from-orange-500 to-red-500" },
+    ];
+  }, [registeredEvents, availableEvents]);
 
   // Achievements
   const achievements = [
