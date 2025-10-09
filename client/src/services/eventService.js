@@ -40,3 +40,19 @@ export const confirmRegistrationPayment = async (registrationId, payload = {}) =
   const res = await axios.post(`${API_URL}/registration/${registrationId}/confirm`, payload, getAuthHeaders());
   return res.data;
 };
+
+// Fetch events registered by the logged-in student
+export const getStudentEvents = async () => {
+  try {
+    const token = localStorage.getItem("token"); // Assuming you store JWT in localStorage
+    const response = await axios.get(`${API_URL}/student/my-events`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data; // Returns categorized events: upcoming, ongoing, completed, cancelled
+  } catch (error) {
+    console.error("Error fetching student events:", error);
+    throw error;
+  }
+};

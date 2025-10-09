@@ -1,152 +1,60 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, Clock, MapPin, Users, Download, CheckCircle, XCircle, AlertCircle, Ticket, QrCode, Star, MessageSquare, FileText } from "lucide-react";
+import { getMyEvents } from "../../services/studentService";
 
 function StudentMyEvents() {
   const [activeTab, setActiveTab] = useState("upcoming");
 
-  // Events Data
-  const myEvents = {
-    upcoming: [
-      {
-        id: 1,
-        title: "Tech Fest 2025",
-        date: "2025-10-15",
-        time: "09:00 AM",
-        venue: "Main Auditorium",
-        category: "Technical",
-        image: "🎪",
-        registrationDate: "2025-09-20",
-        ticketNumber: "TF2025-001234",
-        qrCode: "QR12345",
-        status: "confirmed",
-        participants: 320,
-        price: "Free",
-        organizer: "Tech Club"
-      },
-      {
-        id: 2,
-        title: "AI Workshop",
-        date: "2025-10-18",
-        time: "02:00 PM",
-        venue: "Seminar Hall",
-        category: "Workshop",
-        image: "🤖",
-        registrationDate: "2025-10-01",
-        ticketNumber: "AIW2025-005678",
-        qrCode: "QR67890",
-        status: "confirmed",
-        participants: 65,
-        price: "₹300",
-        organizer: "AI Club"
-      },
-      {
-        id: 3,
-        title: "Sports Meet 2025",
-        date: "2025-10-25",
-        time: "08:00 AM",
-        venue: "Sports Complex",
-        category: "Sports",
-        image: "⚽",
-        registrationDate: "2025-10-03",
-        ticketNumber: "SM2025-009876",
-        qrCode: "QR45678",
-        status: "pending",
-        participants: 150,
-        price: "₹100",
-        organizer: "Sports Committee"
+  // Events Data (loaded from API)
+  const [myEvents, setMyEvents] = useState({ upcoming: [], ongoing: [], completed: [], cancelled: [] });
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const list = await getMyEvents();
+        // group events by date/status
+        const now = new Date();
+        const grouped = { upcoming: [], ongoing: [], completed: [], cancelled: [] };
+
+        list.forEach((e) => {
+          const eventDate = e.date ? new Date(e.date) : null;
+          const base = {
+            id: e._id || e.id,
+            title: e.title,
+            date: e.date,
+            time: e.time || '',
+            venue: e.venue || '',
+            category: e.category || '',
+            image: e.image || '🎫',
+            registrationDate: (e.registeredAt || new Date()).toString(),
+            ticketNumber: e._id || '',
+            qrCode: e._id ? `QR${String(e._id).slice(-6)}` : '',
+            status: e.status || 'confirmed',
+            participants: e.registrations || 0,
+            price: e.price || 0,
+            organizer: e.organizer || '',
+            liveLink: e.liveLink || null,
+          };
+
+          if (e.status && e.status.toLowerCase() === 'cancelled') {
+            grouped.cancelled.push(base);
+          } else if (eventDate) {
+            const sameDay = eventDate.toDateString() === now.toDateString();
+            if (sameDay) grouped.ongoing.push(base);
+            else if (eventDate > now) grouped.upcoming.push(base);
+            else grouped.completed.push(base);
+          } else {
+            grouped.upcoming.push(base);
+          }
+        });
+
+        setMyEvents(grouped);
+      } catch (err) {
+        console.error('Failed to load my events', err);
       }
-    ],
-    ongoing: [
-      {
-        id: 4,
-        title: "Coding Hackathon",
-        date: "2025-10-08",
-        time: "10:00 AM",
-        venue: "Computer Lab",
-        category: "Competition",
-        image: "💻",
-        registrationDate: "2025-09-15",
-        ticketNumber: "CH2025-002345",
-        qrCode: "QR23456",
-        status: "active",
-        participants: 100,
-        price: "₹200",
-        organizer: "Coding Club",
-        liveLink: "https://meet.google.com/abc-defg-hij"
-      }
-    ],
-    completed: [
-      {
-        id: 5,
-        title: "Cultural Night",
-        date: "2025-09-20",
-        time: "06:00 PM",
-        venue: "Open Ground",
-        category: "Cultural",
-        image: "🎭",
-        registrationDate: "2025-09-01",
-        ticketNumber: "CN2025-003456",
-        attended: true,
-        participants: 850,
-        price: "₹50",
-        organizer: "Cultural Committee",
-        rating: 4.8,
-        certificateAvailable: true
-      },
-      {
-        id: 6,
-        title: "Photography Workshop",
-        date: "2025-09-15",
-        time: "03:00 PM",
-        venue: "Art Room",
-        category: "Workshop",
-        image: "📷",
-        registrationDate: "2025-08-20",
-        ticketNumber: "PW2025-004567",
-        attended: true,
-        participants: 45,
-        price: "₹250",
-        organizer: "Photography Club",
-        rating: 4.6,
-        certificateAvailable: true
-      },
-      {
-        id: 7,
-        title: "Startup Pitch",
-        date: "2025-09-10",
-        time: "11:00 AM",
-        venue: "Conference Hall",
-        category: "Competition",
-        image: "🚀",
-        registrationDate: "2025-08-15",
-        ticketNumber: "SP2025-005678",
-        attended: false,
-        participants: 80,
-        price: "Free",
-        organizer: "Entrepreneurship Cell",
-        rating: null,
-        certificateAvailable: false
-      }
-    ],
-    cancelled: [
-      {
-        id: 8,
-        title: "Music Concert",
-        date: "2025-09-25",
-        time: "07:00 PM",
-        venue: "Main Stage",
-        category: "Cultural",
-        image: "🎵",
-        registrationDate: "2025-09-05",
-        ticketNumber: "MC2025-006789",
-        cancelReason: "Venue unavailable due to weather conditions",
-        refundStatus: "processed",
-        participants: 500,
-        price: "₹150",
-        organizer: "Music Club"
-      }
-    ]
-  };
+    };
+    load();
+  }, []);
 
   const tabs = [
     { id: "upcoming", label: "Upcoming", count: myEvents.upcoming.length },

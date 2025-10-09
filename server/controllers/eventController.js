@@ -102,3 +102,56 @@ exports.getEventById = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// Get events registered by the logged-in student
+exports.getMyEvents = async (req, res) => {
+  try {
+    const studentId = req.user && (req.user.id || req.user._id);
+
+    // If no authenticated user, return empty or 401 depending on desired behavior
+    if (!studentId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    // Fetch all registrations for this student and populate the event data
+    const registrations = await Registration.find({ userId: studentId }).populate('eventId');
+
+    // Categorize events
+    const today = new Date();
+    const myEvents = {
+      upcoming: [],
+      ongoing: [],
+      completed: [],
+      cancelled: [],
+    };
+
+    registrations.forEach((reg) => {
+      const eventDoc = reg.eventId;
+      if (!eventDoc) return; // safety
+      const event = (typeof eventDoc.toObject === 'function') ? eventDoc.toObject() : eventDoc;
+
+      // Derive status from registration/payment info if not present on event
+      const regStatus = reg.paymentStatus || 'pending';
+      event.status = event.status || (regStatus === 'success' ? 'confirmed' : 'pending');
+      event.registrationDate = reg.createdAt || reg.registeredAt;
+      event.attended = reg.attended || false;
+
+      const eventDate = event.date ? new Date(event.date) : null;
+
+      if (event.status && event.status.toLowerCase() === 'cancelled') {
+        myEvents.cancelled.push(event);
+      } else if (eventDate && eventDate > today) {
+        myEvents.upcoming.push(event);
+      } else if (eventDate && eventDate.toDateString() === today.toDateString()) {
+        myEvents.ongoing.push(event);
+      } else {
+        myEvents.completed.push(event);
+      }
+    });
+
+    return res.json(myEvents);
+  } catch (error) {
+    console.error('Error fetching student events:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};

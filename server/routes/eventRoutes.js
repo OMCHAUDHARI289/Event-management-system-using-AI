@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getEvents, createEvent, deleteEvent, getEventById, registerForEvent } = require('../controllers/eventController');
+const { getEvents, createEvent, deleteEvent, getEventById, registerForEvent, getMyEvents } = require('../controllers/eventController');
 
 router.get('/', getEvents);
 router.post('/', createEvent);
@@ -10,6 +10,9 @@ router.get('/:id', getEventById);
 
 // New register route
 router.post('/:id/register', registerForEvent);
+
+// GET /api/student/my-events
+router.get("/student/my-events", getMyEvents);
 
 // Confirm payment for registration
 router.post('/registration/:registrationId/confirm', async (req, res) => {
