@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, Clock, MapPin, Users, Search, Filter, Star, Ticket, Heart, Share2, TrendingUp, Award, Zap } from "lucide-react";
 import { getStudentEvents } from "../../services/studentService";
+import { useNavigate } from "react-router-dom";
 
 function StudentAllEvents() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,7 +25,7 @@ function StudentAllEvents() {
           image: "🎫",
           capacity: e.capacity,
           registered: e.registrations,
-          price: "Free",
+          price: e.price || 0,
           rating: 4.7,
           trending: false,
           featured: false,
@@ -63,6 +64,11 @@ function StudentAllEvents() {
     if (percentage >= 90) return "text-red-400";
     if (percentage >= 70) return "text-orange-400";
     return "text-green-400";
+  };
+const navigate = useNavigate();
+
+   const handleRegisterClick = (id) => {
+    navigate(`/student/register/${id}`); // ✅ open register page
   };
 
   return (
@@ -199,7 +205,7 @@ function StudentAllEvents() {
                     <p className="text-white/70 text-sm mb-4">{event.description}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-bold text-green-400">{event.price}</span>
-                      <button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-xl transition-all transform hover:scale-105">
+                      <button  onClick={() => handleRegisterClick(event.id)} className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-xl transition-all transform hover:scale-105">
                         Register Now
                       </button>
                     </div>
@@ -303,7 +309,7 @@ function StudentAllEvents() {
                 {/* Footer */}
                 <div className="flex items-center justify-between pt-4 border-t border-white/10">
                   <span className="text-white font-bold text-lg">{event.price}</span>
-                  <button className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-4 py-2 rounded-lg transition-all transform hover:scale-105">
+                  <button onClick={() => handleRegisterClick(event.id)} className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-4 py-2 rounded-lg transition-all transform hover:scale-105">
                     <Ticket className="w-4 h-4" />
                     <span>Register</span>
                   </button>

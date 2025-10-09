@@ -13,6 +13,7 @@ import { getEvents, createEvent, deleteEvent } from "../../services/eventService
     time: "",
     venue: "",
     capacity: "",
+    price: "",
     category: "Technical",
   });
 
@@ -32,14 +33,30 @@ import { getEvents, createEvent, deleteEvent } from "../../services/eventService
 
   // Create event
   const handleSubmit = async () => {
-    if (!form.title || !form.date || !form.venue) return;
+    if (!form.title || !form.date || !form.venue) {
+      alert('Please fill Title, Date and Venue');
+      return;
+    }
+    if (!form.capacity) {
+      alert('Please provide event capacity');
+      return;
+    }
     try {
-      await createEvent({ ...form, registrations: 0, status: "upcoming" });
+      const payload = {
+        ...form,
+        registrations: 0,
+        status: "upcoming",
+        price: Number(form.price || 0),
+        isPaid: Number(form.price || 0) > 0,
+        capacity: Number(form.capacity || 0),
+      };
+      await createEvent(payload);
       setForm({ title: "", description: "", date: "", time: "", venue: "", capacity: "", category: "Technical" });
       setShowForm(false);
       fetchEvents();
     } catch (err) {
       console.error("Error creating event:", err);
+      alert(err?.response?.data?.message || 'Error creating event');
     }
   };
 
@@ -240,6 +257,18 @@ import { getEvents, createEvent, deleteEvent } from "../../services/eventService
                     className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
                     value={form.capacity}
                     onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white/80 text-sm font-medium mb-2">Price (₹)</label>
+                  <input
+                    type="number"
+                    placeholder="0 for Free"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    min="0"
                   />
                 </div>
 
