@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Bar } from "recharts";
+import { format } from "timeago.js";
 import { BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Users, Calendar, CalendarCheck, DollarSign, TrendingUp, ArrowUpRight } from "lucide-react";
-import { getAdminStats } from "../../services/adminService";
+import {getAdminDashboardStats, getEventRegistrationsStats, getQuickStats, getRecentActivity } from "../../services/adminService";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState([
@@ -11,33 +12,113 @@ const AdminDashboard = () => {
     { title: "Scheduled Events", value: "-", icon: CalendarCheck, color: "from-orange-500 to-red-500", change: "", trend: "up" },
     { title: "Payments Collected", value: "₹0", icon: DollarSign, color: "from-green-500 to-emerald-500", change: "", trend: "up" },
   ]);
+  const [monthlyRegistrations, setMonthlyRegistrations] = useState([]);
+  const [quickStats, setQuickStats] = useState({
+  activeUsers: 0,
+  completedEvents: 0,
+  pendingApprovals: 0
+});
+const [recentActivity, setRecentActivity] = useState([]);
 
-  useEffect(() => {
-    const fetchStats = async () => {
+
+
+ useEffect(() => {
+    const fetchDashboardStats = async () => {
       try {
-        const data = await getAdminStats();
-        const next = [...stats];
-        next[0].value = String(data?.users?.total ?? 0);
-        next[1].value = String(data?.events?.total ?? 0);
-        next[2].value = String(data?.events?.upcoming ?? 0);
-        setStats(next);
-      } catch (e) {
-        console.error("Failed to load admin stats", e);
+        const data = await getAdminDashboardStats();
+        if (!data) return;
+
+        setStats([
+          {
+            title: "Total Users",
+            value: String(data?.users?.total ?? 0),
+            icon: Users,
+            color: "from-blue-500 to-cyan-500",
+            change: "",
+            trend: "up"
+          },
+          {
+            title: "Total Events",
+            value: String(data?.events?.total ?? 0),
+            icon: Calendar,
+            color: "from-purple-500 to-pink-500",
+            change: "",
+            trend: "up"
+          },
+          {
+            title: "Scheduled Events",
+            value: String(data?.events?.upcoming ?? 0),
+            icon: CalendarCheck,
+            color: "from-orange-500 to-red-500",
+            change: "",
+            trend: "up"
+          },
+          {
+            title: "Payments Collected",
+            value: `₹${data?.paymentsCollected ?? 0}`,
+            icon: DollarSign,
+            color: "from-green-500 to-emerald-500",
+            change: "",
+            trend: "up"
+          }
+        ]);
+      } catch (err) {
+        console.error("Failed to load dashboard stats", err);
       }
     };
-    fetchStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    const fetchMonthlyRegistrations = async () => {
+      try {
+        const data = await getEventRegistrationsStats();
+        if (!Array.isArray(data)) {
+          console.warn("Event registrations stats are empty or invalid:", data);
+          setMonthlyRegistrations([]);
+          return;
+        }
+        setMonthlyRegistrations(data);
+      } catch (err) {
+        console.error("Failed to load monthly registrations:", err);
+        setMonthlyRegistrations([]);
+      }
+    };
+
+    fetchDashboardStats();
+    fetchMonthlyRegistrations();
   }, []);
 
-  // Example Chart Data
-  const eventStats = [
-    { month: "Jan", registrations: 150 },
-    { month: "Feb", registrations: 200 },
-    { month: "Mar", registrations: 180 },
-    { month: "Apr", registrations: 250 },
-    { month: "May", registrations: 220 },
-    { month: "Jun", registrations: 300 },
-  ];
+useEffect(() => {
+  const fetchQuickStats = async () => {
+    try {
+      const data = await getQuickStats(); // from your service
+      if (data) {
+        setQuickStats(data);
+      }
+    } catch (err) {
+      console.error("Failed to load quick stats:", err);
+    }
+  };
+
+  fetchQuickStats();
+}, []);
+
+useEffect(() => {
+    const fetchRecentActivity = async () => {
+      try {
+        const data = await getRecentActivity();
+        if (Array.isArray(data)) {
+          // Sort by newest first and take only the last 5
+          const latestFive = data
+            .sort((a, b) => new Date(b.time) - new Date(a.time))
+            .slice(0, 5);
+          setRecentActivity(latestFive);
+        }
+      } catch (err) {
+        console.error("Failed to load recent activity:", err);
+      }
+    };
+
+    fetchRecentActivity();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
@@ -138,7 +219,7 @@ const AdminDashboard = () => {
           
           <div className="w-full h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={eventStats}>
+               <BarChart data={monthlyRegistrations}>
                 <defs>
                   <linearGradient id="colorRegistrations" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
@@ -146,34 +227,11 @@ const AdminDashboard = () => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="rgba(255,255,255,0.6)"
-                  style={{ fontSize: '14px' }}
-                />
-                <YAxis 
-                  stroke="rgba(255,255,255,0.6)"
-                  style={{ fontSize: '14px' }}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '12px',
-                    backdropFilter: 'blur(10px)',
-                    color: '#fff'
-                  }}
-                  cursor={{ fill: 'rgba(139, 92, 246, 0.1)' }}
-                />
-                <Legend 
-                  wrapperStyle={{ color: 'rgba(255,255,255,0.8)' }}
-                />
-                <Bar 
-                  dataKey="registrations" 
-                  fill="url(#colorRegistrations)" 
-                  radius={[8, 8, 0, 0]}
-                  name="Event Registrations"
-                />
+                <XAxis dataKey="month" stroke="rgba(255,255,255,0.6)" />
+                <YAxis stroke="rgba(255,255,255,0.6)" />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', backdropFilter: 'blur(10px)', color: '#fff' }} cursor={{ fill: 'rgba(139, 92, 246, 0.1)' }} />
+                <Legend wrapperStyle={{ color: 'rgba(255,255,255,0.8)' }} />
+                <Bar dataKey="registrations" fill="url(#colorRegistrations)" radius={[8, 8, 0, 0]} name="Event Registrations" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -187,21 +245,21 @@ const AdminDashboard = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-white/70">Active Users</span>
-                <span className="text-white font-semibold">890</span>
+                <span className="text-white font-semibold">{quickStats.activeUsers}</span>
               </div>
               <div className="w-full bg-white/10 rounded-full h-2">
                 <div className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full" style={{ width: '74%' }}></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-white/70">Completed Events</span>
-                <span className="text-white font-semibold">37</span>
+                <span className="text-white font-semibold">{quickStats.completedEvents}</span>
               </div>
               <div className="w-full bg-white/10 rounded-full h-2">
                 <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full" style={{ width: '82%' }}></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-white/70">Pending Approvals</span>
-                <span className="text-white font-semibold">5</span>
+                <span className="text-white font-semibold">{quickStats.pendingApprovals}</span>
               </div>
               <div className="w-full bg-white/10 rounded-full h-2">
                 <div className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full" style={{ width: '15%' }}></div>
@@ -213,20 +271,20 @@ const AdminDashboard = () => {
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 animate-fadeInUp delay-400">
             <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
             <div className="space-y-4">
-              {[
-                { action: "New user registered", time: "2 minutes ago", color: "from-blue-500 to-cyan-500" },
-                { action: "Event 'Tech Fest' created", time: "1 hour ago", color: "from-purple-500 to-pink-500" },
-                { action: "Payment received", time: "3 hours ago", color: "from-green-500 to-emerald-500" },
-                { action: "Event 'Workshop' completed", time: "5 hours ago", color: "from-orange-500 to-red-500" },
-              ].map((activity, idx) => (
-                <div key={idx} className="flex items-center space-x-3">
-                  <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${activity.color}`}></div>
-                  <div className="flex-1">
-                    <p className="text-white text-sm">{activity.action}</p>
-                    <p className="text-white/50 text-xs">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
+              {recentActivity.length > 0 ? (
+  recentActivity.map((activity, idx) => (
+    <div key={idx} className="flex items-center space-x-3">
+      <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${activity.color || "from-blue-500 to-cyan-500"}`}></div>
+      <div className="flex-1">
+        <p className="text-white text-sm">{activity.action}</p>
+        <p className="text-white/50 text-xs">{format(new Date(activity.time))}</p>
+      </div>
+    </div>
+  ))
+) : (
+  <p className="text-white/50 text-sm">No recent activity yet.</p>
+)}
+
             </div>
           </div>
         </div>

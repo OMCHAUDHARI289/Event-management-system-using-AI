@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Calendar, Plus, X, Clock, MapPin, Users, Trash2, Edit, Eye, Filter } from "lucide-react";
-import { getEvents, createEvent, deleteEvent } from "../../services/eventService";
+import { getEvents as getAllAdminEvents, createEvent, deleteEvent } from "../../services/adminService";
 
   function AdminEvents() {
   const [events, setEvents] = useState([]);
@@ -20,7 +20,7 @@ import { getEvents, createEvent, deleteEvent } from "../../services/eventService
   // Fetch events
   const fetchEvents = async () => {
     try {
-      const data = await getEvents();
+    const data = await getAllAdminEvents();
       setEvents(data);
     } catch (err) {
       console.error("Error fetching events:", err);
@@ -47,7 +47,6 @@ import { getEvents, createEvent, deleteEvent } from "../../services/eventService
         registrations: 0,
         status: "upcoming",
         price: Number(form.price || 0),
-        isPaid: Number(form.price || 0) > 0,
         capacity: Number(form.capacity || 0),
       };
       await createEvent(payload);

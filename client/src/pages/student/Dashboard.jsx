@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getStudentEvents, getMyEvents } from "../../services/studentService";
+import { getRecentActivity } from "../../services/adminService";
 import { Calendar, Clock, MapPin, Users, Award, TrendingUp, CheckCircle, XCircle, Bell, Search, Filter, Star, Ticket } from "lucide-react";
 
 function StudentDashboard() {
@@ -7,6 +8,7 @@ function StudentDashboard() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [registeredEvents, setRegisteredEvents] = useState([]);
   const [availableEvents, setAvailableEvents] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
     const load = async () => {
@@ -45,6 +47,21 @@ function StudentDashboard() {
       }
     };
     load();
+  }, []);
+
+  const fetchRecentActivity = async () => {
+    try {
+      const data = await getRecentActivity();
+      setRecentActivity(data);
+    } catch (error) {
+      console.error("Error fetching recent activity:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentActivity();
+    const interval = setInterval(fetchRecentActivity, 60000); // Refresh every 60 seconds
+    return () => clearInterval(interval);
   }, []);
 
   const stats = useMemo(() => {
@@ -387,6 +404,26 @@ function StudentDashboard() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 animate-scaleIn delay-500">
+          <h2 className="text-xl font-bold text-white mb-4">Recent Activity</h2>
+          <div className="space-y-3">
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity, idx) => (
+                <div key={idx} className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg">
+                  <div className="text-lg">{activity.icon || "🔔"}</div>
+                  <div className="flex-1">
+                    <p className="text-white text-sm">{activity.message}</p>
+                    <span className="text-white/60 text-xs">{new Date(activity.timestamp).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-white/60 text-sm">No recent activity.</p>
+            )}
           </div>
         </div>
       </div>

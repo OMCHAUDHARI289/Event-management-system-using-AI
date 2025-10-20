@@ -1,6 +1,7 @@
 import { useState ,useEffect} from "react";
 import { Users, Plus, X, Mail, Phone, BookOpen, Calendar, Trash2, UserCircle, Shield, Search, Filter, ChevronDown, Edit2, CheckCircle } from "lucide-react";
-import {getClubMembers, getStudents, addMember, promoteStudent, deleteMember} from '../../services/adminService';
+import {getClubMembers, getStudents, addMember, promoteStudent, deleteClubMember, deleteStudent} from '../../services/adminService';
+import DeletePopup from "../common/ConfirmModel.jsx";
 
 function AdminMembers() {
   const [view, setView] = useState("club"); // "club" or "students"
@@ -12,6 +13,8 @@ function AdminMembers() {
 
   const [clubMembers, setClubMembers] = useState([]);
   const [students, setStudents] = useState([]);
+  const [showDeletePopup, setShowDeletePopup] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState({ id: null, type: "" });
 
   const [promoteForm, setPromoteForm] = useState({
     position: "Member",
@@ -91,14 +94,20 @@ useEffect(() => {
   };
 
   // -------------------- Delete Member --------------------
-  const handleDelete = async (id) => {
-    try {
-      await deleteMember(id);
+  const handleDelete = async (id, type) => {
+  try {
+    await deleteMember(id); // backend call
+
+    if (type === "club") {
       setClubMembers(clubMembers.filter(m => m._id !== id));
-    } catch (err) {
-      console.error("Error deleting member:", err);
+    } else if (type === "student") {
+      setStudents(students.filter(s => s._id !== id));
     }
-  };
+  } catch (err) {
+    console.error("Error deleting member:", err);
+    alert("Failed to delete user");
+  }
+};
 
   // -------------------- Filter & Search --------------------
   const filteredStudents = students.filter(student =>
@@ -341,7 +350,7 @@ useEffect(() => {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleDelete(member._id)}
+                    onClick={() => handleDelete(member._id, "club")}
                     className="p-2 bg-red-500/20 hover:bg-red-500 rounded-lg transition-all duration-300 group"
                   >
                     <Trash2 className="w-4 h-4 text-red-400 group-hover:text-white" />

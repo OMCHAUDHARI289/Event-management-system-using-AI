@@ -1,60 +1,74 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Calendar, Clock, MapPin, Users, Download, CheckCircle, XCircle, AlertCircle, Ticket, QrCode, Star, MessageSquare, FileText } from "lucide-react";
+import TicketModal from '../../components/student/TicketModal';
 import { getMyEvents } from "../../services/studentService";
+import { useReactToPrint } from "react-to-print";
+import TicketPDFGenerator from "../../components/student/TicketPDFGenerator"; // adjust path
 
 function StudentMyEvents() {
-  const [activeTab, setActiveTab] = useState("upcoming");
-
-  // Events Data (loaded from API)
+  const [activeTab, setActiveTab] = useState("upcoming");  
   const [myEvents, setMyEvents] = useState({ upcoming: [], ongoing: [], completed: [], cancelled: [] });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const ticketRef = useRef();
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const list = await getMyEvents();
-        // group events by date/status
-        const now = new Date();
-        const grouped = { upcoming: [], ongoing: [], completed: [], cancelled: [] };
+  const load = async () => {
+    try {
+      const data = await getMyEvents();
 
-        list.forEach((e) => {
-          const eventDate = e.date ? new Date(e.date) : null;
-          const base = {
-            id: e._id || e.id,
-            title: e.title,
-            date: e.date,
-            time: e.time || '',
-            venue: e.venue || '',
-            category: e.category || '',
-            image: e.image || '🎫',
-            registrationDate: (e.registeredAt || new Date()).toString(),
-            ticketNumber: e._id || '',
-            qrCode: e._id ? `QR${String(e._id).slice(-6)}` : '',
-            status: e.status || 'confirmed',
-            participants: e.registrations || 0,
-            price: e.price || 0,
-            organizer: e.organizer || '',
-            liveLink: e.liveLink || null,
-          };
-
-          if (e.status && e.status.toLowerCase() === 'cancelled') {
-            grouped.cancelled.push(base);
-          } else if (eventDate) {
-            const sameDay = eventDate.toDateString() === now.toDateString();
-            if (sameDay) grouped.ongoing.push(base);
-            else if (eventDate > now) grouped.upcoming.push(base);
-            else grouped.completed.push(base);
-          } else {
-            grouped.upcoming.push(base);
-          }
-        });
-
-        setMyEvents(grouped);
-      } catch (err) {
-        console.error('Failed to load my events', err);
+      // ✅ If backend returns object (grouped)
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        setMyEvents(data);
+        return;
       }
-    };
-    load();
-  }, []);
+
+      // ✅ If backend returns array (fallback)
+      const list = Array.isArray(data) ? data : [];
+      const now = new Date();
+      const grouped = { upcoming: [], ongoing: [], completed: [], cancelled: [] };
+
+      list.forEach((e) => {
+        const eventDate = e.date ? new Date(e.date) : null;
+        const base = {
+          id: e._id || e.id,
+          title: e.title,
+          date: e.date,
+          time: e.time || '',
+          venue: e.venue || '',
+          category: e.category || '',
+          image: e.image || '🎫',
+          registrationDate: (e.registeredAt || new Date()).toString(),
+          ticketNumber: e._id || '',
+          qrCode: e._id ? `QR${String(e._id).slice(-6)}` : '',
+          status: e.status || 'confirmed',
+          participants: e.registrations || 0,
+          price: e.price || 0,
+          organizer: e.organizer || '',
+          liveLink: e.liveLink || null,
+        };
+
+        if (e.status && e.status.toLowerCase() === 'cancelled') {
+          grouped.cancelled.push(base);
+        } else if (eventDate) {
+          const sameDay = eventDate.toDateString() === now.toDateString();
+          if (sameDay) grouped.ongoing.push(base);
+          else if (eventDate > now) grouped.upcoming.push(base);
+          else grouped.completed.push(base);
+        } else {
+          grouped.upcoming.push(base);
+        }
+      });
+
+      setMyEvents(grouped);
+    } catch (err) {
+      console.error("Failed to load my events", err);
+    }
+  };
+  load();
+}, []);
+
+
 
   const tabs = [
     { id: "upcoming", label: "Upcoming", count: myEvents.upcoming.length },
@@ -70,6 +84,42 @@ function StudentMyEvents() {
       case "active": return { text: "Active Now", class: "bg-blue-500/20 text-blue-300 animate-pulse" };
       default: return { text: status, class: "bg-gray-500/20 text-gray-300" };
     }
+  };
+
+  const handleViewTicket = (event) => {
+  setSelectedTicket({
+    ticketNumber: event.ticketNumber,
+    qrCode: event.qrCode,
+    eventTitle: event.title,
+    eventImage: event.image,
+    date: event.date,
+    time: event.time,
+    venue: event.venue,
+    category: event.category,
+    price: event.price,
+    organizer: event.organizer,
+    userName: "Om Patil",  // Replace with logged-in user info
+    email: "om@example.com", // Replace with logged-in user email
+    phone: event.phone || null,
+    department: "Computer Engineering", // optional
+    year: "3rd Year", // optional
+    registeredAt: event.registrationDate,
+  });
+  setIsModalOpen(true);
+};
+
+ const myTicket = {
+    ticketNumber: "EVT456",
+    eventTitle: "Diwali Workshop",
+    userName: "Om Patil",
+    email: "om@example.com",
+    phone: "9876543210",
+    date: "30 Oct 2025",
+    time: "5:00 PM",
+    venue: "Auditorium",
+    category: "Cultural",
+    price: "$30",
+    organizer: "College Org",
   };
 
   return (
@@ -206,15 +256,11 @@ function StudentMyEvents() {
                       </div>
 
                       <div className="flex flex-wrap gap-3">
-                        <button className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-4 py-2 rounded-lg transition-all transform hover:scale-105">
+                        <button onClick={() => handleViewTicket(event)} className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-4 py-2 rounded-lg transition-all transform hover:scale-105">
                           <Ticket className="w-4 h-4" />
                           <span>View Ticket</span>
                         </button>
-                        <button className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all">
-                          <QrCode className="w-4 h-4" />
-                          <span>QR Code</span>
-                        </button>
-                        <button className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all">
+                        <button onClick={() => ticketRef.current?.downloadPDF()} className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all">
                           <Download className="w-4 h-4" />
                           <span>Download</span>
                         </button>
@@ -250,7 +296,48 @@ function StudentMyEvents() {
                   </div>
 
                   <div className="flex-1 p-6">
-                    <h3 className="text-2xl font-bold text-white mb-4">{event.title}</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4">
+                      <div>
+                        <h3 className="text-2xl font-bold text-white mb-1">{event.title}</h3>
+                        <span className="text-white/60 text-sm">{event.category}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                      <div className="flex items-center space-x-2 text-white/70">
+                        <Calendar className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm">{new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-white/70">
+                        <Clock className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm">{event.time}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-white/70">
+                        <MapPin className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm">{event.venue}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/5 rounded-xl p-4 mb-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Ticket Number</p>
+                          <p className="text-white font-semibold text-sm">{event.ticketNumber}</p>
+                        </div>
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Registered On</p>
+                          <p className="text-white font-semibold text-sm">{new Date(event.registrationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                        </div>
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Price Paid</p>
+                          <p className="text-white font-semibold text-sm">{event.price}</p>
+                        </div>
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Organizer</p>
+                          <p className="text-white font-semibold text-sm">{event.organizer}</p>
+                        </div>
+                      </div>
+                    </div>
                     
                     {event.liveLink && (
                       <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 mb-4">
@@ -267,12 +354,17 @@ function StudentMyEvents() {
                     )}
 
                     <div className="flex flex-wrap gap-3">
-                      <button className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold px-6 py-3 rounded-lg transition-all transform hover:scale-105">
-                        <span>Join Event Now</span>
+                      <button className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold px-4 py-2 rounded-lg transition-all transform hover:scale-105">
+                        <QrCode className="w-4 h-4" />
+                        <span>QR Code</span>
                       </button>
-                      <button className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all">
+                      <button onClick={() => handleViewTicket(event)} className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all">
                         <Ticket className="w-4 h-4" />
                         <span>View Ticket</span>
+                      </button>
+                      <button onClick={() => handleDownload(event)} className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all">
+                        <Download className="w-4 h-4" />
+                        <span>Download</span>
                       </button>
                     </div>
                   </div>
@@ -315,18 +407,39 @@ function StudentMyEvents() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                       <div className="flex items-center space-x-2 text-white/70">
                         <Calendar className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm">{new Date(event.date).toLocaleDateString()}</span>
+                        <span className="text-sm">{new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-white/70">
+                        <Clock className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm">{event.time}</span>
                       </div>
                       <div className="flex items-center space-x-2 text-white/70">
                         <MapPin className="w-4 h-4 flex-shrink-0" />
                         <span className="text-sm">{event.venue}</span>
                       </div>
-                      <div className="flex items-center space-x-2 text-white/70">
-                        <Users className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm">{event.participants} participants</span>
+                    </div>
+
+                    <div className="bg-white/5 rounded-xl p-4 mb-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Ticket Number</p>
+                          <p className="text-white font-semibold text-sm">{event.ticketNumber}</p>
+                        </div>
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Registered On</p>
+                          <p className="text-white font-semibold text-sm">{new Date(event.registrationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                        </div>
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Participants</p>
+                          <p className="text-white font-semibold text-sm">{event.participants}</p>
+                        </div>
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Organizer</p>
+                          <p className="text-white font-semibold text-sm">{event.organizer}</p>
+                        </div>
                       </div>
                     </div>
 
@@ -400,7 +513,48 @@ function StudentMyEvents() {
                   </div>
 
                   <div className="flex-1 p-6">
-                    <h3 className="text-2xl font-bold text-white mb-4">{event.title}</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4">
+                      <div>
+                        <h3 className="text-2xl font-bold text-white mb-1">{event.title}</h3>
+                        <span className="text-white/60 text-sm">{event.category}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                      <div className="flex items-center space-x-2 text-white/70">
+                        <Calendar className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm">{new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-white/70">
+                        <Clock className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm">{event.time}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-white/70">
+                        <MapPin className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm">{event.venue}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/5 rounded-xl p-4 mb-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Ticket Number</p>
+                          <p className="text-white font-semibold text-sm">{event.ticketNumber}</p>
+                        </div>
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Registered On</p>
+                          <p className="text-white font-semibold text-sm">{new Date(event.registrationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                        </div>
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Price Paid</p>
+                          <p className="text-white font-semibold text-sm">{event.price}</p>
+                        </div>
+                        <div>
+                          <p className="text-white/60 text-xs mb-1">Organizer</p>
+                          <p className="text-white font-semibold text-sm">{event.organizer}</p>
+                        </div>
+                      </div>
+                    </div>
                     
                     <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-4">
                       <p className="text-white/80 text-sm mb-1">Cancellation Reason:</p>
@@ -409,10 +563,6 @@ function StudentMyEvents() {
 
                     <div className="bg-white/5 rounded-xl p-4 mb-4">
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-white/60 text-xs mb-1">Ticket Number</p>
-                          <p className="text-white font-semibold text-sm">{event.ticketNumber}</p>
-                        </div>
                         <div>
                           <p className="text-white/60 text-xs mb-1">Refund Status</p>
                           <span className="inline-block bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-xs font-semibold uppercase">
@@ -433,8 +583,8 @@ function StudentMyEvents() {
           </div>
         )}
 
-        {/* Empty State */}
-        {myEvents[activeTab].length === 0 && (
+  {/* Empty State */}
+  {(!myEvents[activeTab] || myEvents[activeTab].length === 0) && (
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center animate-fadeIn">
               <div className="inline-flex items-center justify-center w-24 h-24 bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl mb-6">
@@ -445,6 +595,16 @@ function StudentMyEvents() {
             </div>
           </div>
         )}
+        {/* Ticket Modal */}
+        <TicketModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          ticketData={selectedTicket}
+        />
+        {/* Hidden printable area for download: render off-screen so it doesn't appear in layout */}
+        <div aria-hidden="true" style={{ position: 'absolute', left: -10000, top: 0 }}>
+          <TicketPDFGenerator ref={ticketRef} ticketData={selectedTicket || myTicket} />
+        </div>
       </div>
     </div>
   );

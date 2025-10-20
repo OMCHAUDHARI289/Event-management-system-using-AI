@@ -10,8 +10,7 @@ const registrationSchema = new mongoose.Schema({
   department: { type: String },
   year: { type: String },
 
-  // payment and registration metadata
-  paymentStatus: { type: String, enum: ['pending','success','failed'], default: 'pending' },
+  // registration metadata
   amount: { type: Number, default: 0 },
   registeredAt: { type: Date, default: Date.now }
 }, { timestamps: true });

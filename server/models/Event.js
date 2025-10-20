@@ -23,8 +23,6 @@ const eventSchema = new mongoose.Schema({
   featured: { type: Boolean, default: false },
   tags: { type: [String], default: [] },
 
-  // 🟢 Event Payment Type
-  isPaid: { type: Boolean, default: false },  // free or paid
   // Accept numeric or string values for price (coerce "Free" or non-numeric to 0)
   price: {
     type: mongoose.Schema.Types.Mixed,
