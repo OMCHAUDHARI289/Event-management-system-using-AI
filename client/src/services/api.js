@@ -1,6 +1,11 @@
 import axios from 'axios';
 
-const api = axios.create();
+// Base URL for backend API. Prefer Vite env var VITE_API_BASE, fallback to localhost:5000
+// In development, Vite serves the client on :5173; without a baseURL axios will send
+// relative requests to the Vite server which causes 404s for /api/* routes.
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE || 'http://localhost:5000',
+});
 
 // Response interceptor: if a 401 is received, treat as session expiry
 api.interceptors.response.use(

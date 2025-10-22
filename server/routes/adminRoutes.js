@@ -1,5 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' }); // Temporary storage for uploaded files
+
+
 const {
   // USERS / MEMBERS
   getAllStudents,
@@ -13,7 +17,9 @@ const {
   // EVENTS
   getEvents,
   getEventById,
+  getEventRegistrations,
   createEvent,
+  updateEvent,
   deleteEvent,
   registerForEvent,
   getMyEvents,
@@ -23,6 +29,11 @@ const {
   getQuickStats,
   getRecentActivity,
   getAnalytics,
+  // EVENT IMAGES
+  uploadEventImage,
+  cloudinaryStatus,
+  //ATTENDANCE
+  markAttendance,
 } = require('../controllers/adminController');
 
 // -------------------- USERS / MEMBERS --------------------
@@ -56,8 +67,14 @@ router.get('/events', getEvents);
 // Get event by ID
 router.get('/events/:id', getEventById);
 
+// Event Registrations
+router.get('/events/:eventId/registrations', getEventRegistrations);
+
 // Create a new event
 router.post('/events', createEvent);
+
+// Update an event
+router.put('/events/:id', updateEvent);
 
 // Delete an event
 router.delete('/events/:id', deleteEvent);
@@ -80,5 +97,18 @@ router.get('/recent-activity', getRecentActivity);
 
 // Analytics data
 router.get('/analytics', getAnalytics);
+
+// -------------------- EVENT IMAGES --------------------
+// Upload event image to Cloudinary
+router.post('/upload-event-image', upload.single('image'), uploadEventImage);
+
+// Cloudinary connectivity check
+router.get('/cloudinary-status', cloudinaryStatus);
+
+// -------------------- ATTENDANCE --------------------
+router.post('/attendance', markAttendance);
+
+
+
 
 module.exports = router;

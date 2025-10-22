@@ -11,7 +11,7 @@ const eventSchema = new mongoose.Schema({
     enum: ["Technical", "Cultural", "Sports", "Workshop", "Competition"], 
     required: true 
   },
-  image: { type: String, default: "🎉" },
+  image: { type: String, default: "" },
   capacity: { type: Number, required: true },
   registrations: { type: Number, default: 0 },
   status: { 

@@ -1,12 +1,26 @@
 import { useEffect, useState } from "react";
 import { BarChart3, TrendingUp, Star, MessageSquare, Download, Calendar, Users, Eye, ThumbsUp, Award } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { getAnalytics } from "../../services/adminService";
+import { getAnalytics, getEvents } from "../../services/adminService";
+import { summarizeFeedback } from "../../services/aiService";
 
 function AdminAnalytics() {
   const [selectedPeriod, setSelectedPeriod] = useState("month");
-
+  const [aiFeedbackSummary, setAiFeedbackSummary] = useState("");
+  const [loadingSummary, setLoadingSummary] = useState(false);
   const [eventStats, setEventStats] = useState([]);
+  const [eventsList, setEventsList] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [aiError, setAiError] = useState(null);
+  const [aiItemsCount, setAiItemsCount] = useState(null);
+  const [aiSampleComments, setAiSampleComments] = useState([]);
+
+  const [summaryStats, setSummaryStats] = useState([
+    { title: "Total Events", value: "-", change: "", trend: "up", icon: Calendar, color: "from-blue-500 to-cyan-500" },
+    { title: "Total Users", value: "-", change: "", trend: "up", icon: Users, color: "from-purple-500 to-pink-500" },
+    { title: "Students", value: "-", change: "", trend: "up", icon: Users, color: "from-green-500 to-emerald-500" },
+    { title: "Club Members", value: "-", change: "", trend: "up", icon: Star, color: "from-orange-500 to-red-500" }
+  ]);
 
   // Event Popularity Data
   const popularityData = [
@@ -25,49 +39,11 @@ function AdminAnalytics() {
     { name: "Workshop", value: 17, color: "#10b981" }
   ];
 
-  // Feedback Data
+  // Sample feedback data (mock) - used for the Feedback Summary panel
   const feedbackData = [
-    {
-      id: 1,
-      event: "Tech Fest 2025",
-      rating: 4.8,
-      comments: 45,
-      sentiment: "positive",
-      highlights: ["Great organization", "Excellent speakers", "Well managed"]
-    },
-    {
-      id: 2,
-      event: "Coding Hackathon",
-      rating: 4.5,
-      comments: 38,
-      sentiment: "positive",
-      highlights: ["Challenging problems", "Good prizes", "Fun experience"]
-    },
-    {
-      id: 3,
-      event: "Cultural Night",
-      rating: 4.9,
-      comments: 72,
-      sentiment: "positive",
-      highlights: ["Amazing performances", "Great venue", "Well organized"]
-    },
-    {
-      id: 4,
-      event: "Sports Meet",
-      rating: 4.2,
-      comments: 28,
-      sentiment: "neutral",
-      highlights: ["Good competition", "Could improve timing", "Nice facilities"]
-    }
+    { id: 1, event: 'Tech Fest 2025', rating: 4.8, comments: 'Great event with excellent speakers', sentiment: 'positive', highlights: ['Great organization', 'Excellent speakers'] },
+    { id: 2, event: 'Coding Hackathon', rating: 4.5, comments: 'Challenging and fun', sentiment: 'positive', highlights: ['Challenging problems', 'Good prizes'] },
   ];
-
-  // Summary Stats
-  const [summaryStats, setSummaryStats] = useState([
-    { title: "Total Events", value: "-", change: "", trend: "up", icon: Calendar, color: "from-blue-500 to-cyan-500" },
-    { title: "Total Users", value: "-", change: "", trend: "up", icon: Users, color: "from-purple-500 to-pink-500" },
-    { title: "Students", value: "-", change: "", trend: "up", icon: Users, color: "from-green-500 to-emerald-500" },
-    { title: "Club Members", value: "-", change: "", trend: "up", icon: Star, color: "from-orange-500 to-red-500" }
-  ]);
 
   useEffect(() => {
     const load = async () => {
@@ -86,6 +62,16 @@ function AdminAnalytics() {
         next[2].value = String(data?.summary?.totalStudents ?? 0);
         next[3].value = String(data?.summary?.totalClubMembers ?? 0);
         setSummaryStats(next);
+
+        // also load events for optional scoping of AI summarization
+        try {
+          const ev = await getEvents();
+          const eventsArr = Array.isArray(ev) ? ev : (ev?.events || ev?.data || []);
+          setEventsList(eventsArr || []);
+        } catch (e) {
+          console.warn('Failed to load events list for AI scoping', e);
+          setEventsList([]);
+        }
       } catch (e) {
         console.error('Failed to load analytics', e);
       }
@@ -93,6 +79,38 @@ function AdminAnalytics() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch AI summary on demand (initially, fetch server-side aggregated feedback)
+  useEffect(() => {
+    const fetchAISummary = async () => {
+      setLoadingSummary(true);
+      setAiError(null);
+      try {
+        // If a specific event is selected, request the server to scope to that event
+        const resp = await summarizeFeedback(null, selectedEventId ? { eventId: selectedEventId } : {});
+        if (!resp || !resp.summary) {
+          setAiError('AI summarization failed or returned empty result');
+          setAiFeedbackSummary('No summary available');
+        } else {
+          setAiFeedbackSummary(resp.summary);
+          // optional: show number of comments used
+          setAiError(null);
+        }
+      } catch (err) {
+        console.error('Error fetching AI summary:', err);
+        setAiError('Failed to generate AI summary');
+        setAiFeedbackSummary('No summary available');
+      } finally {
+        setLoadingSummary(false);
+      }
+    };
+
+    // Initial automatic fetch once component mounts
+    fetchAISummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
@@ -314,6 +332,79 @@ function AdminAnalytics() {
               <div>
                 <h2 className="text-xl font-bold text-white mb-1">Event Feedback</h2>
                 <p className="text-white/60 text-sm">Recent ratings and reviews</p>
+
+          {/* AI Feedback Summary (placed outside of SVG container) */}
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 animate-scaleIn delay-400 mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-white mb-1">AI Feedback Summary</h2>
+                <p className="text-white/60 text-sm">Summarized insights from attendee feedback (server-aggregated)</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => setSelectedEventId(e.target.value)}
+                  className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
+                >
+                  <option value=''>All events</option>
+                  {Array.isArray(eventsList) && eventsList.map(ev => (
+                    <option key={ev._id || ev.id} value={ev._id || ev.id}>{ev.title || ev.name || `Event ${ev._id || ev.id}`}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={async () => {
+                    setLoadingSummary(true);
+                    setAiError(null);
+                    try {
+                      const resp = await summarizeFeedback(null, selectedEventId ? { eventId: selectedEventId } : {});
+                      if (!resp || !resp.summary) {
+                        setAiError('No summary returned');
+                        setAiFeedbackSummary('No summary available');
+                        setAiItemsCount(null);
+                        setAiSampleComments([]);
+                      } else {
+                        setAiFeedbackSummary(resp.summary);
+                        setAiItemsCount(resp.itemsCount ?? null);
+                        setAiSampleComments(resp.sampleComments || []);
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      setAiError('Failed to fetch AI summary');
+                    } finally {
+                      setLoadingSummary(false);
+                    }
+                  }}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm"
+                >
+                  {loadingSummary ? 'Generating...' : 'Refresh'}
+                </button>
+              </div>
+            </div>
+
+            <div className="whitespace-pre-wrap text-white/90 text-sm bg-white/5 p-4 rounded-lg border border-white/5">
+              {aiError && <div className="text-red-400 mb-2">{aiError}</div>}
+              {loadingSummary ? (
+                <div className="text-white/60">Generating summary...</div>
+              ) : (
+                  <div>
+                    <div className="text-white/80 mb-2">{aiFeedbackSummary}</div>
+                    {aiItemsCount !== null && (
+                      <div className="text-white/60 text-sm mb-2">Items used for summary: {aiItemsCount}</div>
+                    )}
+                    {aiSampleComments && aiSampleComments.length > 0 && (
+                      <div className="text-white/60 text-xs">
+                        <div className="font-semibold text-white/80 mb-1">Sample comments:</div>
+                        <ul className="list-disc ml-5 space-y-1">
+                          {aiSampleComments.map((c, i) => (
+                            <li key={i}>{c}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+              )}
+            </div>
+          </div>
               </div>
               <MessageSquare className="w-5 h-5 text-purple-400" />
             </div>
@@ -386,6 +477,79 @@ function AdminAnalytics() {
                   </button>
                 );
               })}
+{/* AI Feedback Summary (placed outside of SVG container) */}
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 animate-scaleIn delay-400 mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-white mb-1">AI Feedback Summary</h2>
+                <p className="text-white/60 text-sm">Summarized insights from attendee feedback (server-aggregated)</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => setSelectedEventId(e.target.value)}
+                  className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
+                >
+                  <option value=''>All events</option>
+                  {Array.isArray(eventsList) && eventsList.map(ev => (
+                    <option key={ev._id || ev.id} value={ev._id || ev.id}>{ev.title || ev.name || `Event ${ev._id || ev.id}`}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={async () => {
+                    setLoadingSummary(true);
+                    setAiError(null);
+                    try {
+                      const resp = await summarizeFeedback(null, selectedEventId ? { eventId: selectedEventId } : {});
+                      if (!resp || !resp.summary) {
+                        setAiError('No summary returned');
+                        setAiFeedbackSummary('No summary available');
+                        setAiItemsCount(null);
+                        setAiSampleComments([]);
+                      } else {
+                        setAiFeedbackSummary(resp.summary);
+                        setAiItemsCount(resp.itemsCount ?? null);
+                        setAiSampleComments(resp.sampleComments || []);
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      setAiError('Failed to fetch AI summary');
+                    } finally {
+                      setLoadingSummary(false);
+                    }
+                  }}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm"
+                >
+                  {loadingSummary ? 'Generating...' : 'Refresh'}
+                </button>
+              </div>
+            </div>
+
+            <div className="whitespace-pre-wrap text-white/90 text-sm bg-white/5 p-4 rounded-lg border border-white/5">
+              {aiError && <div className="text-red-400 mb-2">{aiError}</div>}
+              {loadingSummary ? (
+                <div className="text-white/60">Generating summary...</div>
+              ) : (
+                  <div>
+                    <div className="text-white/80 mb-2">{aiFeedbackSummary}</div>
+                    {aiItemsCount !== null && (
+                      <div className="text-white/60 text-sm mb-2">Items used for summary: {aiItemsCount}</div>
+                    )}
+                    {aiSampleComments && aiSampleComments.length > 0 && (
+                      <div className="text-white/60 text-xs">
+                        <div className="font-semibold text-white/80 mb-1">Sample comments:</div>
+                        <ul className="list-disc ml-5 space-y-1">
+                          {aiSampleComments.map((c, i) => (
+                            <li key={i}>{c}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+              )}
+            </div>
+          </div>
+
             </div>
           </div>
         </div>

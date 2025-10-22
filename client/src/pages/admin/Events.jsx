@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { Calendar, Plus, X, Clock, MapPin, Users, Trash2, Edit, Eye, Filter } from "lucide-react";
-import { getEvents as getAllAdminEvents, createEvent, deleteEvent } from "../../services/adminService";
+import { getEvents as getAllAdminEvents, createEvent, deleteEvent, uploadEventImage, getEventRegistrations } from "../../services/adminService";
+import ViewEventModal from "../../components/admin/ViewEventModal"; // adjust the path
+import AdminEditEventModal from "../../components/admin/AdminEditEventModal";
 
   function AdminEvents() {
   const [events, setEvents] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState("all");
   const [form, setForm] = useState({
+    image: "",
     title: "",
     description: "",
     date: "",
@@ -16,6 +19,14 @@ import { getEvents as getAllAdminEvents, createEvent, deleteEvent } from "../../
     price: "",
     category: "Technical",
   });
+  const [viewEvent, setViewEvent] = useState(null); // currently selected event
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [registrations, setRegistrations] = useState([]);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+
+
+
 
   // Fetch events
   const fetchEvents = async () => {
@@ -50,7 +61,7 @@ import { getEvents as getAllAdminEvents, createEvent, deleteEvent } from "../../
         capacity: Number(form.capacity || 0),
       };
       await createEvent(payload);
-      setForm({ title: "", description: "", date: "", time: "", venue: "", capacity: "", category: "Technical" });
+      setForm({ image: "", title: "", description: "", date: "", time: "", venue: "", capacity: "", category: "Technical" });
       setShowForm(false);
       fetchEvents();
     } catch (err) {
@@ -58,6 +69,35 @@ import { getEvents as getAllAdminEvents, createEvent, deleteEvent } from "../../
       alert(err?.response?.data?.message || 'Error creating event');
     }
   };
+
+  const handleViewEvent = async (event) => {
+  setViewEvent(event);
+  try {
+    const data = await getEventRegistrations(event._id); // fetch registration array
+    // normalize to array
+    setRegistrations(Array.isArray(data) ? data : (data && data.registrations ? data.registrations : []));
+    setIsViewModalOpen(true);
+  } catch (err) {
+    console.error("Failed to load registrations:", err);
+    setRegistrations([]);
+    setIsViewModalOpen(true);
+  }
+};
+
+
+
+  const handleImageUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const url = await uploadEventImage(file);
+    setForm({ ...form, image: url });
+    alert("Image uploaded successfully!");
+  } catch (err) {
+    alert("Image upload failed");
+  }
+};
 
   // Delete event
   const handleDelete = async (id) => {
@@ -195,6 +235,17 @@ import { getEvents as getAllAdminEvents, createEvent, deleteEvent } from "../../
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
               <h2 className="text-xl font-bold text-white mb-6">Create New Event</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <div className="md:col-span-2">
+  <label className="block text-white/80 text-sm font-medium mb-2">Event Image</label>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={handleImageUpload}
+    className="w-full text-white/70"
+  />
+</div>
+
                 <div className="md:col-span-2">
                   <label className="block text-white/80 text-sm font-medium mb-2">Event Title</label>
                   <input
@@ -356,11 +407,11 @@ import { getEvents as getAllAdminEvents, createEvent, deleteEvent } from "../../
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-2">
-                  <button className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
+                  <button onClick={() => { handleViewEvent(event) }} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
                     <Eye className="w-4 h-4" />
                     <span className="text-sm">View</span>
                   </button>
-                  <button className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
+                  <button onClick={() => {setSelectedEvent(event); setEditModalOpen(true);}} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
                     <Edit className="w-4 h-4" />
                     <span className="text-sm">Edit</span>
                   </button>
@@ -399,6 +450,26 @@ import { getEvents as getAllAdminEvents, createEvent, deleteEvent } from "../../
             </div>
           </div>
         )}
+    
+ <ViewEventModal
+  isOpen={isViewModalOpen}
+  onClose={() => setIsViewModalOpen(false)}
+  event={viewEvent}
+  registrations={registrations} // now using the state
+/>
+<AdminEditEventModal
+  isOpen={editModalOpen}
+  onClose={() => setEditModalOpen(false)}
+  event={selectedEvent}
+  onUpdated={(updatedEvent) => {
+    // Refresh the event list after editing
+    setEvents((prev) =>
+      prev.map((ev) => (ev._id === updatedEvent._id ? updatedEvent : ev))
+    );
+  }}
+/>
+
+
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ function StudentAllEvents() {
           time: e.time,
           venue: e.venue,
           category: e.category,
-          image: "🎫",
+          image: e.image || "🎉",
           capacity: e.capacity,
           registered: e.registrations,
           price: e.price || 0,
@@ -233,7 +233,20 @@ const navigate = useNavigate();
             >
               {/* Event Header */}
               <div className="relative bg-gradient-to-br from-purple-500 to-pink-500 h-40 flex items-center justify-center text-6xl">
-                {event.image}
+                <div className="relative h-40 w-full overflow-hidden rounded-t-2xl">
+  <img
+    src={event.image || "https://via.placeholder.com/400x200?text=No+Image"}
+    alt={event.title}
+    className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+  />
+  {event.trending && (
+    <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-lg text-xs font-bold flex items-center space-x-1">
+      <TrendingUp className="w-3 h-3" />
+      <span>Trending</span>
+    </div>
+  )}
+</div>
+
                 {event.trending && (
                   <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-lg text-xs font-bold flex items-center space-x-1">
                     <TrendingUp className="w-3 h-3" />

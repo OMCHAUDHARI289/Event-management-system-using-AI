@@ -3,6 +3,8 @@ const Event = require('../models/Event');
 const Registration = require('../models/Registration');
 const bcrypt = require('bcryptjs');
 const sendEmail = require('../config/email');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
 
 // ======================== USERS / MEMBERS ========================
 
@@ -194,6 +196,19 @@ async function getEventById(req, res) {
   }
 }
 
+// Fetch registrations for a single event
+async function getEventRegistrations (req, res) {
+  try {
+    const { eventId } = req.params;
+    // registration documents store the event reference in `eventId` (not `event`)
+    const registrations = await Registration.find({ eventId }).sort({ createdAt: -1 });
+    // optionally populate user details if needed: .populate('userId', '-password')
+    res.json(registrations);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch registrations' });
+  }
+};
+
 // Create event
 async function createEvent(req, res) {
   try {
@@ -202,6 +217,29 @@ async function createEvent(req, res) {
     res.status(201).json(newEvent);
   } catch (error) {
     res.status(400).json({ message: 'Invalid Data', error });
+  }
+}
+
+// Admin: update/edit event
+async function updateEvent(req, res) {
+  try {
+    const { id } = req.params;
+    const allowedFields = [
+      'title', 'description', 'date', 'time', 'venue', 'capacity', 'price', 'status', 'image'
+    ];
+
+    const updates = {};
+    for (const key of allowedFields) {
+      if (key in req.body) updates[key] = req.body[key];
+    }
+
+    const updatedEvent = await Event.findByIdAndUpdate(id, updates, { new: true });
+    if (!updatedEvent) return res.status(404).json({ message: "Event not found" });
+
+    res.status(200).json(updatedEvent);
+  } catch (error) {
+    console.error("Error updating event:", error);
+    res.status(500).json({ message: "Server error" });
   }
 }
 
@@ -445,6 +483,127 @@ async function getAnalytics(req, res) {
   }
 }
 
+//======================== CLOUDINARY ========================
+
+//UPLOAD EVENT IMAGE
+async function uploadEventImage(req, res) {
+  try {
+    if (!req.file) {
+      console.debug('uploadEventImage: no req.file present');
+      return res.status(400).json({ message: 'No image uploaded' });
+    }
+
+    console.debug('uploadEventImage req.file:', req.file);
+
+    // Upload image to Cloudinary
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'events', // optional folder name in Cloudinary
+    });
+
+    // Delete local temp file after upload (if exists)
+    try {
+      if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+    } catch (unlinkErr) {
+      console.warn('Failed to remove temp file:', unlinkErr && unlinkErr.message);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Image uploaded successfully',
+      imageUrl: result && result.secure_url ? result.secure_url : null, // this is the URL you’ll store in DB
+    });
+  } catch (error) {
+    console.error('Cloudinary upload error full:', error);
+    // include limited message in response; full error is logged server-side
+    res.status(500).json({ message: 'Error uploading image', error: error && error.message ? error.message : 'unknown error' });
+  }
+}
+
+// CLOUDINARY STATUS CHECK
+async function cloudinaryStatus(req, res) {
+  try {
+    const missing = [];
+    if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
+    if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
+    if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
+
+    if (missing.length) {
+      return res.status(400).json({ ok: false, message: 'Missing env vars', missing });
+    }
+
+    // Try a harmless API call to validate credentials/network. Request a tiny resource list.
+    let apiResult = null;
+    try {
+      apiResult = await cloudinary.api.resources({ max_results: 1 });
+    } catch (apiErr) {
+      console.error('Cloudinary API test error:', apiErr);
+      return res.status(502).json({ ok: false, message: 'Cloudinary API call failed', error: apiErr && apiErr.message ? apiErr.message : apiErr });
+    }
+
+    res.status(200).json({ ok: true, message: 'Cloudinary reachable', resourcesReturned: Array.isArray(apiResult.resources) ? apiResult.resources.length : undefined });
+  } catch (err) {
+    console.error('cloudinaryStatus unexpected error:', err);
+    res.status(500).json({ ok: false, message: 'Unexpected error', error: err && err.message ? err.message : err });
+  }
+}
+//===========================attendance============================
+
+// Mark attendance based only on ticket number
+async function markAttendance (req, res) {
+  try {
+    const { ticketNumber } = req.body;
+
+    if (!ticketNumber) {
+      return res.status(400).json({ success: false, message: "Ticket number is required" });
+    }
+
+    // Find registration or student by ticketNumber
+    console.debug('markAttendance called with body:', req.body);
+    const registration = await Registration.findOne({ ticketNumber });
+
+    if (!registration) {
+      return res.status(404).json({ success: false, message: "Ticket not found" });
+    }
+
+    // Check if already marked
+    if (registration.attended || registration.attendanceMarked) {
+      return res.json({
+        status: "duplicate",
+        studentData: {
+          name: registration.fullName,
+          ticketNumber: registration.ticketNumber,
+          department: registration.department,
+          year: registration.year,
+        },
+      });
+    }
+
+    // Mark attendance (set both `attended` and compatibility flag `attendanceMarked`)
+    registration.attended = true;
+    registration.attendedAt = new Date();
+    // some older code may check attendanceMarked — set it for compatibility
+    registration.attendanceMarked = true;
+    await registration.save();
+
+    return res.json({
+      success: true,
+      studentData: {
+        name: registration.fullName,
+        ticketNumber: registration.ticketNumber,
+        department: registration.department,
+        year: registration.year,
+      },
+    });
+  } catch (err) {
+    console.error("Error marking attendance:", err && err.stack ? err.stack : err);
+    // include the error message to help debugging (safe on dev only)
+    res.status(500).json({ success: false, message: "Server error", error: err && err.message ? err.message : undefined });
+  }
+};
+
+
 // ======================== EXPORT ========================
 
 module.exports = {
@@ -459,7 +618,9 @@ module.exports = {
   updateProfile,
   // EVENTS
   getEvents,
+  getEventRegistrations,
   createEvent,
+  updateEvent,
   deleteEvent,
   getEventById,
   registerForEvent,
@@ -470,4 +631,9 @@ module.exports = {
   getQuickStats,
   getRecentActivity,
   getAnalytics,
+  // CLOUDINARY
+  uploadEventImage,
+  cloudinaryStatus,
+  //ATTENDANCE
+  markAttendance,
 };

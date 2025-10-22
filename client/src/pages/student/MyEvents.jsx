@@ -4,6 +4,9 @@ import TicketModal from '../../components/student/TicketModal';
 import { getMyEvents } from "../../services/studentService";
 import { useReactToPrint } from "react-to-print";
 import TicketPDFGenerator from "../../components/student/TicketPDFGenerator"; // adjust path
+import TicketQRCodeModal from "../../components/student/TicketQRCodeModal";
+import StudentFeedbackModal from "../../components/student/StudentFeedbackModal";
+
 
 function StudentMyEvents() {
   const [activeTab, setActiveTab] = useState("upcoming");  
@@ -11,6 +14,12 @@ function StudentMyEvents() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const ticketRef = useRef();
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [feedbackRegId, setFeedbackRegId] = useState(null);
+
+
+
 
   useEffect(() => {
   const load = async () => {
@@ -39,7 +48,7 @@ function StudentMyEvents() {
           category: e.category || '',
           image: e.image || '🎫',
           registrationDate: (e.registeredAt || new Date()).toString(),
-          ticketNumber: e._id || '',
+          ticketNumber: e.ticketNumber || e._id, // backend ticket number
           qrCode: e._id ? `QR${String(e._id).slice(-6)}` : '',
           status: e.status || 'confirmed',
           participants: e.registrations || 0,
@@ -68,6 +77,22 @@ function StudentMyEvents() {
   load();
 }, []);
 
+const handleOpenQR = (event) => {
+  setSelectedTicket({
+    ticketNumber: event.ticketNumber,
+    eventTitle: event.title,
+    date: event.date,
+    time: event.time,
+    venue: event.venue,
+    userName: event.userName || event.fullName,
+  });
+  setQrModalOpen(true);
+};
+
+const handleOpenFeedback = (registrationId) => {
+  setFeedbackRegId(registrationId);
+  setFeedbackModalOpen(true);
+};
 
 
   const tabs = [
@@ -98,11 +123,11 @@ function StudentMyEvents() {
     category: event.category,
     price: event.price,
     organizer: event.organizer,
-    userName: "Om Patil",  // Replace with logged-in user info
-    email: "om@example.com", // Replace with logged-in user email
-    phone: event.phone || null,
-    department: "Computer Engineering", // optional
-    year: "3rd Year", // optional
+    userName: event.userName || event.fullName,  // from backend
+    email: event.email,
+    phone: event.phone,
+    department: event.department,
+    year: event.year,
     registeredAt: event.registrationDate,
   });
   setIsModalOpen(true);
@@ -203,9 +228,14 @@ function StudentMyEvents() {
                 >
                   <div className="flex flex-col lg:flex-row">
                     {/* Event Image */}
-                    <div className="bg-gradient-to-br from-purple-500 to-pink-500 w-full lg:w-48 h-48 flex items-center justify-center text-7xl">
-                      {event.image}
-                    </div>
+                     {/* Event Image */}
+      <div className="w-full lg:w-48 h-48 overflow-hidden rounded-2xl">
+        <img 
+          src={event.image || '👌'} 
+          alt={event.title} 
+          className="w-full h-full object-cover"
+        />
+      </div>
 
                     {/* Event Details */}
                     <div className="flex-1 p-6">
@@ -291,9 +321,13 @@ function StudentMyEvents() {
                 </div>
                 
                 <div className="flex flex-col lg:flex-row">
-                  <div className="bg-gradient-to-br from-blue-500 to-cyan-500 w-full lg:w-48 h-48 flex items-center justify-center text-7xl">
-                    {event.image}
-                  </div>
+                  <div className="w-full lg:w-48 h-48 overflow-hidden rounded-2xl">
+        <img 
+          src={event.image || '👌'} 
+          alt={event.title} 
+          className="w-full h-full object-cover"
+        />
+      </div>
 
                   <div className="flex-1 p-6">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4">
@@ -354,7 +388,7 @@ function StudentMyEvents() {
                     )}
 
                     <div className="flex flex-wrap gap-3">
-                      <button className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold px-4 py-2 rounded-lg transition-all transform hover:scale-105">
+                      <button onClick={() => handleOpenQR(event)} className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold px-4 py-2 rounded-lg transition-all transform hover:scale-105">
                         <QrCode className="w-4 h-4" />
                         <span>QR Code</span>
                       </button>
@@ -384,8 +418,12 @@ function StudentMyEvents() {
                 style={{ animationDelay: `${idx * 100}ms`, opacity: 0 }}
               >
                 <div className="flex flex-col lg:flex-row">
-                  <div className="bg-gradient-to-br from-gray-500 to-slate-600 w-full lg:w-48 h-48 flex items-center justify-center text-7xl opacity-70">
-                    {event.image}
+                  <div className="w-full lg:w-48 h-48 overflow-hidden rounded-2xl">
+                    <img
+                      src={event.image || 'https://via.placeholder.com/400x400?text=Event'}
+                      alt={event.title}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
 
                   <div className="flex-1 p-6">
@@ -443,33 +481,6 @@ function StudentMyEvents() {
                       </div>
                     </div>
 
-                    {event.attended && (
-                      <div className="bg-white/5 rounded-xl p-4 mb-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-white font-semibold mb-1">How was the event?</p>
-                            {event.rating ? (
-                              <div className="flex items-center space-x-2">
-                                <div className="flex items-center space-x-1">
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star
-                                      key={star}
-                                      className={`w-4 h-4 ${star <= event.rating ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`}
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-white/60 text-sm">({event.rating}/5)</span>
-                              </div>
-                            ) : (
-                              <button className="text-purple-400 hover:text-purple-300 text-sm font-semibold">
-                                Rate this event →
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
                     <div className="flex flex-wrap gap-3">
                       {event.certificateAvailable && (
                         <button className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-4 py-2 rounded-lg transition-all transform hover:scale-105">
@@ -477,14 +488,15 @@ function StudentMyEvents() {
                           <span>Download Certificate</span>
                         </button>
                       )}
-                      <button className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all">
-                        <MessageSquare className="w-4 h-4" />
-                        <span>Give Feedback</span>
-                      </button>
-                      <button className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all">
-                        <FileText className="w-4 h-4" />
-                        <span>View Details</span>
-                      </button>
+                      {!event.rating && event.attended && (
+  <button
+    onClick={() => handleOpenFeedback(event.registrationId || event._id)} // pass registrationId
+    className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all"
+  >
+    <MessageSquare className="w-4 h-4" />
+    <span>Give Feedback</span>
+  </button>
+)}
                     </div>
                   </div>
                 </div>
@@ -508,8 +520,12 @@ function StudentMyEvents() {
                 </div>
 
                 <div className="flex flex-col lg:flex-row">
-                  <div className="bg-gradient-to-br from-red-500 to-red-600 w-full lg:w-48 h-48 flex items-center justify-center text-7xl opacity-50">
-                    {event.image}
+                  <div className="w-full lg:w-48 h-48 overflow-hidden rounded-2xl">
+                    <img
+                      src={event.image || 'https://via.placeholder.com/400x400?text=Event'}
+                      alt={event.title}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
 
                   <div className="flex-1 p-6">
@@ -605,6 +621,21 @@ function StudentMyEvents() {
         <div aria-hidden="true" style={{ position: 'absolute', left: -10000, top: 0 }}>
           <TicketPDFGenerator ref={ticketRef} ticketData={selectedTicket || myTicket} />
         </div>
+        <TicketQRCodeModal
+  isOpen={qrModalOpen}
+  onClose={() => setQrModalOpen(false)}
+  ticket={selectedTicket}
+/>
+<StudentFeedbackModal
+  isOpen={feedbackModalOpen}
+  onClose={() => setFeedbackModalOpen(false)}
+  registrationId={feedbackRegId}
+  onFeedbackSubmitted={async () => {
+    const updatedEvents = await getMyEvents();
+    setMyEvents(updatedEvents);
+  }}
+/>
+
       </div>
     </div>
   );

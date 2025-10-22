@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middlewares/authMiddleware');
-const { getMe, getAllEvents, getMyEvents, registerForEvent, getTicket } = require('../controllers/studentController');
+const { getMe, getAllEvents, getMyEvents, registerForEvent, getTicket, submitFeedback } = require('../controllers/studentController');
 
 // profile
 router.get('/me', auth, getMe);
@@ -14,6 +14,8 @@ router.get('/my-events', auth, getMyEvents); // protected: my events
 // get ticket for an event
 router.get('/events/:id/ticket', auth, getTicket);
 
+// submit feedback for an event
+router.post('/registrations/:registrationId/feedback', auth, submitFeedback);
 module.exports = router;
 
 

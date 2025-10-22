@@ -25,7 +25,7 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
     { id: 'events', label: 'Events', icon: Calendar, color: 'from-orange-500 to-red-500' },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'from-green-500 to-emerald-500' },
     { id: 'profile', label: 'Profile', icon: UserCircle, color: 'from-indigo-500 to-purple-500' },
-    { id: 'email', label: 'Send Email', icon: Mail, color: 'from-pink-500 to-rose-500' }
+    { id: 'attendance', label: 'Attendace', icon: Mail, color: 'from-pink-500 to-rose-500' }
   ];
 
   return (

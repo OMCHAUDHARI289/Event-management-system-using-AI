@@ -13,8 +13,8 @@ import AdminMembers from "./pages/admin/Members";
 import AdminEvents from "./pages/admin/Events";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminProfile from "./pages/admin/Profile";
-import AdminEmail from "./pages/admin/Email";
 import NotFound from "./pages/common/NotFound";
+import AdminAttendance from "./components/admin/QRScannerModal";
 import Login from "./pages/common/Login";
 import Register from "./pages/common/Register";
 
@@ -91,7 +91,7 @@ function App() {
           <Route path="events" element={<AdminEvents />} />
           <Route path="analytics" element={<AdminAnalytics />} />
           <Route path="profile" element={<AdminProfile />} />
-          <Route path="email" element={<AdminEmail />} />
+          <Route path="attendance" element={<AdminAttendance />} />
         </Route>
 
         {/* Club Member Routes */}
