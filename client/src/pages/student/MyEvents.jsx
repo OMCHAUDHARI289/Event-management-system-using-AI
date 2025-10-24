@@ -21,18 +21,23 @@ function StudentMyEvents() {
 
 
 
-  useEffect(() => {
-  const load = async () => {
+  // Centralized fetch + normalize function so callers (effect, callbacks) get the same data shape
+  const fetchMyEvents = async () => {
     try {
       const data = await getMyEvents();
 
-      // ✅ If backend returns object (grouped)
+      // If backend returns object with myEvents property
       if (data && typeof data === 'object' && !Array.isArray(data)) {
+        if (data.myEvents) {
+          setMyEvents(data.myEvents);
+          return;
+        }
+        // If it's already the grouped events object
         setMyEvents(data);
         return;
       }
 
-      // ✅ If backend returns array (fallback)
+      // If backend returns array (fallback), normalize into grouped object
       const list = Array.isArray(data) ? data : [];
       const now = new Date();
       const grouped = { upcoming: [], ongoing: [], completed: [], cancelled: [] };
@@ -48,13 +53,16 @@ function StudentMyEvents() {
           category: e.category || '',
           image: e.image || '🎫',
           registrationDate: (e.registeredAt || new Date()).toString(),
-          ticketNumber: e.ticketNumber || e._id, // backend ticket number
+          ticketNumber: e.ticketNumber || e._id,
           qrCode: e._id ? `QR${String(e._id).slice(-6)}` : '',
           status: e.status || 'confirmed',
           participants: e.registrations || 0,
           price: e.price || 0,
           organizer: e.organizer || '',
           liveLink: e.liveLink || null,
+          attended: e.attended,
+          registrationId: e.registrationId || e._id || null,
+          rating: e.rating,
         };
 
         if (e.status && e.status.toLowerCase() === 'cancelled') {
@@ -71,11 +79,13 @@ function StudentMyEvents() {
 
       setMyEvents(grouped);
     } catch (err) {
-      console.error("Failed to load my events", err);
+      console.error('Failed to load my events', err);
     }
   };
-  load();
-}, []);
+
+  useEffect(() => {
+    fetchMyEvents();
+  }, []);
 
 const handleOpenQR = (event) => {
   setSelectedTicket({
@@ -95,12 +105,21 @@ const handleOpenFeedback = (registrationId) => {
 };
 
 
+  // Ensure counts are safe even if myEvents was set to an unexpected shape
+  const upcomingCount = Array.isArray(myEvents?.upcoming) ? myEvents.upcoming.length : 0;
+  const ongoingCount = Array.isArray(myEvents?.ongoing) ? myEvents.ongoing.length : 0;
+  const completedCount = Array.isArray(myEvents?.completed) ? myEvents.completed.length : 0;
+  const cancelledCount = Array.isArray(myEvents?.cancelled) ? myEvents.cancelled.length : 0;
+
   const tabs = [
-    { id: "upcoming", label: "Upcoming", count: myEvents.upcoming.length },
-    { id: "ongoing", label: "Ongoing", count: myEvents.ongoing.length },
-    { id: "completed", label: "Completed", count: myEvents.completed.length },
-    { id: "cancelled", label: "Cancelled", count: myEvents.cancelled.length }
+    { id: "upcoming", label: "Upcoming", count: upcomingCount },
+    { id: "ongoing", label: "Ongoing", count: ongoingCount },
+    { id: "completed", label: "Completed", count: completedCount },
+    { id: "cancelled", label: "Cancelled", count: cancelledCount }
   ];
+
+  // Active list for the current tab (safe fallback to array)
+  const activeList = Array.isArray(myEvents?.[activeTab]) ? myEvents[activeTab] : [];
 
   const getStatusBadge = (status) => {
     switch(status) {
@@ -218,7 +237,7 @@ const handleOpenFeedback = (registrationId) => {
         {/* Upcoming Events */}
         {activeTab === "upcoming" && (
           <div className="space-y-6">
-            {myEvents.upcoming.map((event, idx) => {
+            {(Array.isArray(myEvents?.upcoming) ? myEvents.upcoming : []).map((event, idx) => {
               const statusInfo = getStatusBadge(event.status);
               return (
                 <div
@@ -306,7 +325,7 @@ const handleOpenFeedback = (registrationId) => {
         {/* Ongoing Events */}
         {activeTab === "ongoing" && (
           <div className="space-y-6">
-            {myEvents.ongoing.map((event, idx) => (
+            {(Array.isArray(myEvents?.ongoing) ? myEvents.ongoing : []).map((event, idx) => (
               <div
                 key={event.id}
                 className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden animate-scaleIn"
@@ -411,7 +430,7 @@ const handleOpenFeedback = (registrationId) => {
         {/* Completed Events */}
         {activeTab === "completed" && (
           <div className="space-y-6">
-            {myEvents.completed.map((event, idx) => (
+            {(Array.isArray(myEvents?.completed) ? myEvents.completed : []).map((event, idx) => (
               <div
                 key={event.id}
                 className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-all duration-300 animate-scaleIn"
@@ -508,7 +527,7 @@ const handleOpenFeedback = (registrationId) => {
         {/* Cancelled Events */}
         {activeTab === "cancelled" && (
           <div className="space-y-6">
-            {myEvents.cancelled.map((event, idx) => (
+            {(Array.isArray(myEvents?.cancelled) ? myEvents.cancelled : []).map((event, idx) => (
               <div
                 key={event.id}
                 className="bg-white/5 backdrop-blur-xl border border-red-500/30 rounded-2xl overflow-hidden animate-scaleIn"
@@ -600,7 +619,7 @@ const handleOpenFeedback = (registrationId) => {
         )}
 
   {/* Empty State */}
-  {(!myEvents[activeTab] || myEvents[activeTab].length === 0) && (
+  {(Array.isArray(activeList) && activeList.length === 0) && (
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center animate-fadeIn">
               <div className="inline-flex items-center justify-center w-24 h-24 bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl mb-6">
@@ -630,10 +649,7 @@ const handleOpenFeedback = (registrationId) => {
   isOpen={feedbackModalOpen}
   onClose={() => setFeedbackModalOpen(false)}
   registrationId={feedbackRegId}
-  onFeedbackSubmitted={async () => {
-    const updatedEvents = await getMyEvents();
-    setMyEvents(updatedEvents);
-  }}
+  onFeedbackSubmitted={fetchMyEvents}
 />
 
       </div>

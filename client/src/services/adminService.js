@@ -177,6 +177,17 @@ export const getEventRegistrationsStats = async () => {
   }
 };
 
+// Get analytics data (monthly breakdowns, summary)
+export const getAnalytics = async () => {
+  try {
+    const res = await api.get(`${API_BASE}/analytics`, getAuthHeaders());
+    return res.data; // expected shape: { monthly: [...], summary: {...} }
+  } catch (err) {
+    console.error('Error fetching analytics:', err);
+    return { monthly: [], summary: {} };
+  }
+};
+
 // Get quick stats (active users, completed events, pending approvals)
 export const getQuickStats = async () => {
   try {
@@ -188,10 +199,12 @@ export const getQuickStats = async () => {
   }
 };
 
-// Fetch recent activity
 export const getRecentActivity = async () => {
   try {
-    const { data } = await axios.get(`${API_BASE}/recent-activity`);
+    const { data } = await axios.get(
+      `${API_BASE}/recent-activity`,
+      getAuthHeaders()
+    );
     return data; // array of recent activity objects
   } catch (err) {
     console.error("Recent activity error:", err);
@@ -199,11 +212,6 @@ export const getRecentActivity = async () => {
   }
 };
 
-// Get analytics data
-export const getAnalytics = async () => {
-  const res = await axios.get(`${API_BASE}/analytics`);
-  return res.data; // { summary, monthly }
-};
 
 // Upload event image
 // Upload event image
@@ -251,6 +259,37 @@ export const markAttendance = async (ticketNumber) => {
   }
 };
 
+// GET /api/admin/event-stats
+export const getEventStats = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/event-stats`, getAuthHeaders());
+    return res.data; // array of { month, events, registrations, attendance }
+  } catch (err) {
+    console.error("Error fetching event stats:", err);
+    return [];
+  }
+};
 
+// GET /api/admin/event-categories
+export const getEventCategories = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/event-categories`, getAuthHeaders());
+    return res.data; // array of { name, value, color }
+  } catch (err) {
+    console.error("Error fetching event categories:", err);
+    return [];
+  }
+};
 
+// Optional: Event popularity
+export const getEventPopularity = async () => {
+  try {
+    // Server route is registered as /api/admin/popularity
+    const res = await axios.get(`${API_BASE}/popularity`, getAuthHeaders());
+    return res.data || [];
+  } catch (err) {
+    console.error("Error fetching event popularity:", err);
+    return [];
+  }
+};
 

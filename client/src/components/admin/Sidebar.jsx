@@ -18,6 +18,20 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
   const isOpen = isControlled ? isOpenProp : localOpen;
   const setIsOpen = isControlled ? setIsOpenProp : setLocalOpen;
   const [hoveredItem, setHoveredItem] = useState(null);
+  const [user, setUser] = useState({ name: 'Admin', email: 'admin@example.com' });
+
+  useEffect(() => {
+  const raw = localStorage.getItem('user');
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      setUser({
+        name: parsed.name || 'Admin',
+        email: parsed.email || 'admin@example.com'
+      });
+    } catch {}
+  }
+}, []);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'from-blue-500 to-cyan-500' },
@@ -156,8 +170,8 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
                   <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-slate-900"></div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-white">John Doe</h3>
-                  <p className="text-xs text-white/60">john@college.edu</p>
+                  <h3 className="text-sm font-semibold text-white">{user.name}</h3>
+                  <p className="text-xs text-white/60">{user.email}</p>
                 </div>
                 <Bell className="w-5 h-5 text-white/60 group-hover:text-white transition-colors" />
               </div>

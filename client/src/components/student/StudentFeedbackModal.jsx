@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Star, MessageSquare, Send, AlertCircle } from 'lucide-react';
+import { submitEventFeedback } from '../../services/studentService';
 
 export default function StudentFeedbackModal({
   isOpen,
@@ -24,23 +25,20 @@ export default function StudentFeedbackModal({
     setError('');
     
     try {
-      // Replace with actual API call
-      // const res = await submitEventFeedback(registrationId, { rating, comments });
+      const res = await submitEventFeedback(registrationId, { rating, comments });
+      const feedback = res?.feedback ?? { rating, comments };
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      const mockFeedback = { rating, comments };
-      
       if (onFeedbackSubmitted) {
-        onFeedbackSubmitted(mockFeedback);
+        // allow parent to refresh from server
+        await onFeedbackSubmitted(feedback);
       }
-      
+
       setRating(0);
       setComments('');
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Error submitting feedback');
+      console.error('Feedback submit error', err);
+      setError(err.response?.data?.message || err.message || 'Error submitting feedback');
     } finally {
       setLoading(false);
     }

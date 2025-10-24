@@ -1,151 +1,60 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trophy, Medal, Award, TrendingUp, Users, Calendar, Star, Crown, Zap, Target, ChevronUp, ChevronDown } from "lucide-react";
+import { getLeaderboard } from "../../services/studentService";
 
 function StudentLeaderboard() {
   const [filterPeriod, setFilterPeriod] = useState("all");
   const [filterCategory, setFilterCategory] = useState("overall");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Leaderboard Data
-  const leaderboardData = [
-    {
-      rank: 1,
-      name: "Priya Sharma",
-      avatar: "👩",
-      points: 2850,
-      eventsAttended: 28,
-      badges: 12,
-      streak: 15,
-      level: "Platinum",
-      department: "Computer Science",
-      trend: "up",
-      achievements: ["Event Master", "Perfect Attendance", "Early Bird"]
-    },
-    {
-      rank: 2,
-      name: "Rahul Verma",
-      avatar: "👨",
-      points: 2720,
-      eventsAttended: 26,
-      badges: 11,
-      streak: 12,
-      level: "Platinum",
-      department: "Information Technology",
-      trend: "up",
-      achievements: ["Tech Enthusiast", "Team Player", "Innovator"]
-    },
-    {
-      rank: 3,
-      name: "Ananya Desai",
-      avatar: "👧",
-      points: 2650,
-      eventsAttended: 25,
-      badges: 10,
-      streak: 18,
-      level: "Gold",
-      department: "Electronics",
-      trend: "same",
-      achievements: ["Cultural Star", "Event Explorer", "Social Butterfly"]
-    },
-    {
-      rank: 4,
-      name: "Arjun Patel",
-      avatar: "🧑",
-      points: 2480,
-      eventsAttended: 23,
-      badges: 9,
-      streak: 10,
-      level: "Gold",
-      department: "Mechanical",
-      trend: "down",
-      achievements: ["Sports Champion", "Team Captain", "Leader"]
-    },
-    {
-      rank: 5,
-      name: "Sneha Kumar",
-      avatar: "👩",
-      points: 2350,
-      eventsAttended: 22,
-      badges: 9,
-      streak: 14,
-      level: "Gold",
-      department: "Civil",
-      trend: "up",
-      achievements: ["Workshop Warrior", "Quick Learner", "Dedicated"]
-    },
-    {
-      rank: 6,
-      name: "Vikram Singh",
-      avatar: "👨",
-      points: 2180,
-      eventsAttended: 21,
-      badges: 8,
-      streak: 9,
-      level: "Silver",
-      department: "Computer Science",
-      trend: "up",
-      achievements: ["Code Master", "Hackathon Hero"]
-    },
-    {
-      rank: 7,
-      name: "Neha Reddy",
-      avatar: "👧",
-      points: 2050,
-      eventsAttended: 20,
-      badges: 8,
-      streak: 11,
-      level: "Silver",
-      department: "Information Technology",
-      trend: "same",
-      achievements: ["Creative Mind", "Art Lover"]
-    },
-    {
-      rank: 8,
-      name: "Karan Mehta",
-      avatar: "🧑",
-      points: 1920,
-      eventsAttended: 18,
-      badges: 7,
-      streak: 8,
-      level: "Silver",
-      department: "Electrical",
-      trend: "up",
-      achievements: ["Rising Star", "Energetic"]
-    },
-    {
-      rank: 9,
-      name: "Pooja Gupta",
-      avatar: "👩",
-      points: 1850,
-      eventsAttended: 17,
-      badges: 7,
-      streak: 13,
-      level: "Silver",
-      department: "Electronics",
-      trend: "down",
-      achievements: ["Consistent", "Dedicated"]
-    },
-    {
-      rank: 10,
-      name: "John Doe",
-      avatar: "👤",
-      points: 1750,
-      eventsAttended: 16,
-      badges: 6,
-      streak: 7,
-      level: "Bronze",
-      department: "Computer Science",
-      trend: "same",
-      isCurrentUser: true,
-      achievements: ["Event Explorer", "Team Player"]
+  useEffect(() => {
+  const load = async () => {
+    setLoading(true);
+    try {
+      const resp = await getLeaderboard(); // fetches normalized data
+      setLeaderboardData(resp.leaderboard || []);
+      setCurrentUser(resp.currentUser || null);
+    } catch (err) {
+      console.error('Failed to load leaderboard', err);
+      setLeaderboardData([]);
+      setCurrentUser(null);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+  load();
+}, []);
 
-  const stats = [
-    { label: "Your Rank", value: "#10", icon: Trophy, color: "from-yellow-500 to-orange-500" },
-    { label: "Total Points", value: "1,750", icon: Star, color: "from-purple-500 to-pink-500" },
-    { label: "Events Attended", value: "16", icon: Calendar, color: "from-blue-500 to-cyan-500" },
-    { label: "Current Streak", value: "7 days", icon: Zap, color: "from-green-500 to-emerald-500" }
-  ];
+
+  useEffect(() => {
+  const load = async () => {
+    setLoading(true);
+    try {
+      const resp = await getLeaderboard();
+      setLeaderboardData(resp.leaderboard || []);
+      setCurrentUser(resp.currentUser || null);
+    } catch (err) {
+      console.error('Failed to load leaderboard', err);
+      setLeaderboardData([]);
+      setCurrentUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+  load();
+}, []);
+
+ const stats = currentUser
+  ? [
+      { label: "Your Rank", value: `#${currentUser.rank}`, icon: Trophy, color: "from-yellow-500 to-orange-500" },
+      { label: "Total Points", value: currentUser.points, icon: Star, color: "from-purple-500 to-pink-500" },
+      { label: "Events Attended", value: currentUser.eventsAttended || 0, icon: Calendar, color: "from-blue-500 to-cyan-500" },
+      { label: "Current Streak", value: currentUser.streak || "0 days", icon: Zap, color: "from-green-500 to-emerald-500" }
+    ]
+  : [];
+
 
   const getLevelColor = (level) => {
     switch(level) {
@@ -294,14 +203,14 @@ function StudentLeaderboard() {
             <div className="flex flex-col items-center pt-12">
               <div className="relative mb-4">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-gray-300 to-gray-500 rounded-full flex items-center justify-center text-4xl sm:text-5xl border-4 border-gray-400 shadow-2xl">
-                  {leaderboardData[1].avatar}
+                  {leaderboardData[1]?.avatar || '👤'}
                 </div>
                 <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-gray-300 to-gray-500 rounded-full flex items-center justify-center border-2 border-slate-900">
                   <span className="text-white font-bold text-sm">2</span>
                 </div>
               </div>
-              <h3 className="text-white font-bold text-sm sm:text-base text-center mb-1">{leaderboardData[1].name}</h3>
-              <p className="text-white/60 text-xs mb-2">{leaderboardData[1].points} pts</p>
+              <h3 className="text-white font-bold text-sm sm:text-base text-center mb-1">{leaderboardData[1]?.name || '--'}</h3>
+              <p className="text-white/60 text-xs mb-2">{leaderboardData[1]?.points ?? 0} pts</p>
               <div className="bg-gradient-to-br from-gray-300 to-gray-500 rounded-t-2xl p-4 sm:p-6 w-full text-center">
                 <Medal className="w-8 h-8 sm:w-10 sm:h-10 text-white mx-auto" />
               </div>
@@ -311,14 +220,14 @@ function StudentLeaderboard() {
             <div className="flex flex-col items-center">
               <div className="relative mb-4">
                 <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-5xl sm:text-6xl border-4 border-yellow-500 shadow-2xl shadow-yellow-500/50 animate-shimmer">
-                  {leaderboardData[0].avatar}
+                  {leaderboardData[0]?.avatar || '👤'}
                 </div>
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                   <Crown className="w-10 h-10 sm:w-12 sm:h-12 text-yellow-400 fill-yellow-400 animate-float" />
                 </div>
               </div>
-              <h3 className="text-white font-bold text-base sm:text-lg text-center mb-1">{leaderboardData[0].name}</h3>
-              <p className="text-white/60 text-sm mb-2">{leaderboardData[0].points} pts</p>
+              <h3 className="text-white font-bold text-base sm:text-lg text-center mb-1">{leaderboardData[0]?.name || '--'}</h3>
+              <p className="text-white/60 text-sm mb-2">{leaderboardData[0]?.points ?? 0} pts</p>
               <div className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-t-2xl p-6 sm:p-8 w-full text-center">
                 <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-white mx-auto" />
               </div>
@@ -328,14 +237,14 @@ function StudentLeaderboard() {
             <div className="flex flex-col items-center pt-16">
               <div className="relative mb-4">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-4xl sm:text-5xl border-4 border-orange-500 shadow-2xl">
-                  {leaderboardData[2].avatar}
+                  {leaderboardData[2]?.avatar || '👤'}
                 </div>
                 <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center border-2 border-slate-900">
                   <span className="text-white font-bold text-sm">3</span>
                 </div>
               </div>
-              <h3 className="text-white font-bold text-sm sm:text-base text-center mb-1">{leaderboardData[2].name}</h3>
-              <p className="text-white/60 text-xs mb-2">{leaderboardData[2].points} pts</p>
+              <h3 className="text-white font-bold text-sm sm:text-base text-center mb-1">{leaderboardData[2]?.name || '--'}</h3>
+              <p className="text-white/60 text-xs mb-2">{leaderboardData[2]?.points ?? 0} pts</p>
               <div className="bg-gradient-to-br from-orange-400 to-orange-600 rounded-t-2xl p-4 sm:p-6 w-full text-center">
                 <Medal className="w-8 h-8 sm:w-10 sm:h-10 text-white mx-auto" />
               </div>
@@ -352,7 +261,7 @@ function StudentLeaderboard() {
           <div className="divide-y divide-white/10">
             {leaderboardData.map((user, idx) => (
               <div
-                key={user.rank}
+                key={user._id || user.userId || `rank-${user.rank}-idx-${idx}`}
                 className={`p-4 sm:p-6 hover:bg-white/5 transition-all duration-300 ${
                   user.isCurrentUser ? 'bg-purple-500/10 border-l-4 border-purple-500' : ''
                 }`}
@@ -380,9 +289,9 @@ function StudentLeaderboard() {
                       </div>
                       <p className="text-white/60 text-xs sm:text-sm">{user.department}</p>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {user.achievements.slice(0, 2).map((achievement, i) => (
+                        {(Array.isArray(user.achievements) ? user.achievements.slice(0, 2) : []).map((achievement, i) => (
                           <span key={i} className="text-xs bg-white/5 text-white/60 px-2 py-0.5 rounded">
-                            {achievement}
+                            {typeof achievement === 'object' ? achievement.title || achievement.name || 'Achievement' : achievement}
                           </span>
                         ))}
                       </div>

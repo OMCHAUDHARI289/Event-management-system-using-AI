@@ -258,7 +258,7 @@ useEffect(() => {
                 <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full" style={{ width: '82%' }}></div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-white/70">Pending Approvals</span>
+                <span className="text-white/70">Upcoming Events</span>
                 <span className="text-white font-semibold">{quickStats.pendingApprovals}</span>
               </div>
               <div className="w-full bg-white/10 rounded-full h-2">

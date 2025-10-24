@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Bell, Gauge, HelpCircle, LogOut, ChevronDown, Settings, QrCode } from 'lucide-react';
-import QRScannerModal from '../../components/admin/QRScannerModal';
+import { Home, Bell, Gauge, HelpCircle, LogOut, ChevronDown, Settings } from 'lucide-react';
 
-export default function ModernHeader({ onLogoClick, onOpenQR }) {
+export default function ModernHeader({ onLogoClick }) {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -34,8 +33,12 @@ export default function ModernHeader({ onLogoClick, onOpenQR }) {
     }
   }, []);
 
+  // Smaller buttons on desktop, default size on mobile
+  const buttonBase = "flex items-center justify-center p-2 sm:p-2.5 md:p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/10 hover:border-white/20 text-white";
+
   return (
-    <header className="relative bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-b border-white/10 backdrop-blur-xl pl-0 lg:pl-80 z-20">
+    <header className="relative bg-transparent border-b border-purple-300/20 backdrop-blur-md z-20">
+
       {/* Background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-pulse-slow"></div>
@@ -43,62 +46,48 @@ export default function ModernHeader({ onLogoClick, onOpenQR }) {
       </div>
 
       <style>{`
-        @keyframes float { 0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);} }
-        @keyframes pulse-slow {0%,100%{opacity:0.3;transform:scale(1);}50%{opacity:0.5;transform:scale(1.05);}}
-        @keyframes slideDown {from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}
+        @keyframes float {0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);} }
+        @keyframes pulse-slow {0%,100%{opacity:0.3;transform:scale(1);}50%{opacity:0.5;transform:scale(1.05);} }
+        @keyframes slideDown {from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);} }
         .animate-float{animation:float 4s ease-in-out infinite;}
         .animate-pulse-slow{animation:pulse-slow 3s ease-in-out infinite;}
         .animate-slideDown{animation:slideDown 0.2s ease-out forwards;}
       `}</style>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Left - Logo */}
-          <div className="flex items-center space-x-6">
-            <button
-              onClick={() => onLogoClick && onLogoClick()}
-              className="flex items-center space-x-3 p-1 rounded-md focus:outline-none"
-              aria-label="Toggle sidebar"
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/50">
-                <Home className="w-6 h-6 text-white" />
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-white">EventHub</h1>
-                <p className="text-xs text-white/60">Dashboard</p>
-              </div>
-            </button>
-          </div>
+      <div className="relative w-full px-4 sm:px-6">
+        <div className="flex items-center justify-between h-16 w-full">
 
-          {/* Right - Actions */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            {/* Home Button */}
+          {/* Sidebar Toggle / Logo with Title */}
+          <button
+            onClick={() => onLogoClick && onLogoClick()}
+            className="flex items-center space-x-2 focus:outline-none"
+            aria-label="Toggle sidebar"
+          >
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+              <Home className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            </div>
+            <span className="hidden md:inline text-lg font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-purple-300 bg-clip-text text-transparent">
+              ICEM Event Hub
+            </span>
+          </button>
+
+          {/* Right Buttons */}
+          <div className="flex items-center space-x-2 sm:space-x-3 ml-auto">
+            {/* Home Button - hidden on mobile */}
             <button
               onClick={() => navigate('/admin/dashboard')}
-              className="group relative p-2 sm:px-4 sm:py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/10 hover:border-white/20"
+              className={`hidden sm:flex ${buttonBase}`}
             >
-              <div className="flex items-center space-x-2">
-                <Home className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
-                <span className="hidden sm:inline text-sm font-medium text-white/70 group-hover:text-white transition-colors">
-                  Home
-                </span>
-              </div>
-            </button>
-
-            {/* QR Button */}
-            <button
-              onClick={onOpenQR} // Pass this from AdminLayout
-              className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/10 hover:border-white/20 group"
-            >
-              <QrCode className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
+              <Home className="w-5 h-5 sm:w-5 md:w-5" />
+              <span className="hidden sm:inline text-sm font-medium text-white/70 ml-1 md:ml-2">
+                Home
+              </span>
             </button>
 
             {/* Speed Indicator */}
-            <div className="relative group p-2 sm:px-4 sm:py-2 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition-all duration-300">
-              <div className="flex items-center space-x-2">
-                <Gauge className="w-5 h-5 text-blue-400" />
-                <span className="hidden md:inline text-sm font-medium text-white/70">Fast</span>
-              </div>
+            <div className={`${buttonBase} cursor-pointer`}>
+              <Gauge className="w-5 h-5 sm:w-5 md:w-5 text-blue-400" />
+              <span className="hidden md:inline text-sm font-medium text-white/70 ml-1 md:ml-2">Fast</span>
             </div>
 
             {/* Notifications */}
@@ -108,11 +97,11 @@ export default function ModernHeader({ onLogoClick, onOpenQR }) {
                   setShowNotifications(!showNotifications);
                   setShowUserMenu(false);
                 }}
-                className="relative p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/10 hover:border-white/20 group"
+                className={buttonBase}
               >
-                <Bell className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
+                <Bell className="w-5 h-5 sm:w-5 md:w-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-xs font-bold text-white animate-pulse">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-4 md:w-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-xs font-bold text-white animate-pulse">
                     {unreadCount}
                   </span>
                 )}
@@ -136,13 +125,8 @@ export default function ModernHeader({ onLogoClick, onOpenQR }) {
             </div>
 
             {/* FAQ */}
-            <button className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/10 hover:border-white/20 group">
-              <HelpCircle className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
-            </button>
-
-            {/* Settings */}
-            <button className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/10 hover:border-white/20 group">
-              <Settings className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
+            <button className={buttonBase}>
+              <HelpCircle className="w-5 h-5 sm:w-5 md:w-5" />
             </button>
 
             {/* User Menu */}
@@ -152,14 +136,15 @@ export default function ModernHeader({ onLogoClick, onOpenQR }) {
                   setShowUserMenu(!showUserMenu);
                   setShowNotifications(false);
                 }}
-                className="flex items-center space-x-2 p-2 pl-3 pr-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/10 hover:border-white/20 group"
+                className={`${buttonBase} flex items-center space-x-2`}
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-white">{initials}</span>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                  <span className="text-sm sm:text-base font-bold text-white">{initials}</span>
                 </div>
                 <span className="hidden sm:inline text-sm font-medium text-white/90">{displayName.split(' ')[0]}</span>
                 <ChevronDown className={`w-4 h-4 text-white/70 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''}`} />
               </button>
+
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-56 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-slideDown z-50">
                   <div className="p-4 border-b border-white/10">
@@ -193,6 +178,7 @@ export default function ModernHeader({ onLogoClick, onOpenQR }) {
                 </div>
               )}
             </div>
+
           </div>
         </div>
       </div>

@@ -444,6 +444,111 @@ const getRecentActivity = async (req, res) => {
   }
 };
 
+// GET /api/admin/event-stats
+async function getEventStats(req, res) {
+  try {
+    const today = new Date();
+    const stats = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const monthStart = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const monthEnd = new Date(today.getFullYear(), today.getMonth() - i + 1, 0, 23, 59, 59);
+      const monthLabel = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+
+      const eventsCount = await Event.countDocuments({ createdAt: { $gte: monthStart, $lte: monthEnd } });
+      const registrationsCount = await Registration.countDocuments({ createdAt: { $gte: monthStart, $lte: monthEnd } });
+      const attendanceCount = await Registration.countDocuments({ attended: true, createdAt: { $gte: monthStart, $lte: monthEnd } });
+
+      stats.push({
+        month: monthLabel,
+        events: eventsCount,
+        registrations: registrationsCount,
+        attendance: attendanceCount
+      });
+    }
+
+    res.status(200).json(stats);
+  } catch (err) {
+    console.error('getEventStats error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+}
+
+// GET /api/admin/event-categories
+async function getEventCategories(req, res) {
+  try {
+    const categories = await Event.aggregate([
+      { $group: { _id: '$category', value: { $sum: 1 } } }
+    ]);
+
+    const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#6366f1'];
+    const data = categories.map((cat, idx) => ({
+      name: cat._id || 'Other',
+      value: cat.value,
+      color: colors[idx % colors.length]
+    }));
+
+    res.status(200).json(data);
+  } catch (err) {
+    console.error('getEventCategories error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+}
+
+async function getEventPopularity(req, res) {
+  try {
+    const events = await Event.find();
+
+    const registrations = await Registration.aggregate([
+      {
+        $group: {
+          _id: '$eventId',
+          totalRegistrations: { $sum: 1 },
+          avgRating: { $avg: '$feedback.rating' }
+        }
+      }
+    ]);
+
+    const regMap = {};
+    registrations.forEach(r => {
+      regMap[r._id.toString()] = { totalRegistrations: r.totalRegistrations, avgRating: r.avgRating || 0 };
+    });
+
+    const flattened = [];
+
+    events.forEach(ev => {
+      const regData = regMap[ev._id.toString()] || { totalRegistrations: 0, avgRating: 0 };
+
+      const popularity = Math.round(
+        regData.totalRegistrations * 0.4 +
+        ((ev.capacity ? (regData.totalRegistrations / ev.capacity) * 100 : 0) * 0.2) +
+        (ev.trending ? 20 : 0) +
+        (ev.featured ? 20 : 0) +
+        ((regData.avgRating / 5) * 20)
+      );
+
+      flattened.push({
+        category: ev.category || 'Other',
+        id: ev._id,
+        name: ev.title,
+        popularity,
+        registrations: regData.totalRegistrations,
+        capacity: ev.capacity,
+        avgRating: (regData.avgRating || 0).toFixed(2),
+      });
+    });
+
+    // Sort by popularity descending for nicer charting
+    flattened.sort((a, b) => b.popularity - a.popularity);
+
+    res.json(flattened);
+  } catch (err) {
+    console.error('Error fetching category popularity:', err);
+    res.status(500).json({ message: 'Failed to fetch popularity' });
+  }
+};
+
+
 
 // Analytics (registrations & events)
 async function getAnalytics(req, res) {
@@ -550,8 +655,9 @@ async function cloudinaryStatus(req, res) {
 }
 //===========================attendance============================
 
+const { updateLeaderboard } = require(`..//controllers//studentController`)
 // Mark attendance based only on ticket number
-async function markAttendance (req, res) {
+async function markAttendance(req, res) {
   try {
     const { ticketNumber } = req.body;
 
@@ -559,15 +665,13 @@ async function markAttendance (req, res) {
       return res.status(400).json({ success: false, message: "Ticket number is required" });
     }
 
-    // Find registration or student by ticketNumber
-    console.debug('markAttendance called with body:', req.body);
     const registration = await Registration.findOne({ ticketNumber });
 
     if (!registration) {
       return res.status(404).json({ success: false, message: "Ticket not found" });
     }
 
-    // Check if already marked
+    // Already marked
     if (registration.attended || registration.attendanceMarked) {
       return res.json({
         status: "duplicate",
@@ -580,12 +684,16 @@ async function markAttendance (req, res) {
       });
     }
 
-    // Mark attendance (set both `attended` and compatibility flag `attendanceMarked`)
+    // ✅ Mark attendance
     registration.attended = true;
     registration.attendedAt = new Date();
-    // some older code may check attendanceMarked — set it for compatibility
     registration.attendanceMarked = true;
     await registration.save();
+
+    // ✅ Add points to leaderboard
+    if (registration.userId) {
+      await updateLeaderboard(registration.userId, 30); // 30 points for attendance
+    }
 
     return res.json({
       success: true,
@@ -598,10 +706,9 @@ async function markAttendance (req, res) {
     });
   } catch (err) {
     console.error("Error marking attendance:", err && err.stack ? err.stack : err);
-    // include the error message to help debugging (safe on dev only)
     res.status(500).json({ success: false, message: "Server error", error: err && err.message ? err.message : undefined });
   }
-};
+}
 
 
 // ======================== EXPORT ========================
@@ -629,6 +736,9 @@ module.exports = {
   getAdminDashboardStats,
   getEventRegistrationsStats,
   getQuickStats,
+  getEventStats,
+  getEventCategories,
+  getEventPopularity,
   getRecentActivity,
   getAnalytics,
   // CLOUDINARY

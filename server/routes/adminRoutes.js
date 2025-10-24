@@ -27,6 +27,9 @@ const {
   getAdminDashboardStats,
   getEventRegistrationsStats,
   getQuickStats,
+  getEventStats,
+  getEventCategories,
+  getEventPopularity,
   getRecentActivity,
   getAnalytics,
   // EVENT IMAGES
@@ -94,6 +97,10 @@ router.get('/quick-stats', getQuickStats);
 
 // Recent activity
 router.get('/recent-activity', getRecentActivity);
+
+router.get('/event-stats',  getEventStats);
+router.get('/event-categories', getEventCategories);
+router.get('/popularity', getEventPopularity);
 
 // Analytics data
 router.get('/analytics', getAnalytics);
