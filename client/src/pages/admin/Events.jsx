@@ -3,6 +3,7 @@ import { Calendar, Plus, X, Clock, MapPin, Users, Trash2, Edit, Eye, Filter } fr
 import { getEvents as getAllAdminEvents, createEvent, deleteEvent, uploadEventImage, getEventRegistrations } from "../../services/adminService";
 import ViewEventModal from "../../components/admin/ViewEventModal";
 import AdminEditEventModal from "../../components/admin/AdminEditEventModal";
+import { useToast } from "../../pages/common/Toast";
 
 function AdminEvents() {
   const [events, setEvents] = useState([]);
@@ -24,7 +25,7 @@ function AdminEvents() {
   const [registrations, setRegistrations] = useState([]);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
-
+  const { addToast } = useToast();
   // Compute status based on current date and event date/time
   const getEventStatus = (event) => {
     const now = new Date();
@@ -57,6 +58,7 @@ function AdminEvents() {
       setEvents(data);
     } catch (err) {
       console.error("Error fetching events:", err);
+      addToast("Error fetching events", "error");
     }
   };
 
@@ -67,11 +69,11 @@ function AdminEvents() {
   // Create event
   const handleSubmit = async () => {
     if (!form.title || !form.date || !form.venue) {
-      alert('Please fill Title, Date and Venue');
+      addToast('Please fill Title, Date and Venue', 'error');
       return;
     }
     if (!form.capacity) {
-      alert('Please provide event capacity');
+      addToast('Please provide event capacity', 'error');
       return;
     }
     try {
@@ -83,12 +85,13 @@ function AdminEvents() {
         capacity: Number(form.capacity || 0),
       };
       await createEvent(payload);
+      addToast('Event created successfully', 'success');
       setForm({ image: "", title: "", description: "", date: "", time: "", venue: "", capacity: "", price: "", category: "Technical" });
       setShowForm(false);
       fetchEvents();
     } catch (err) {
       console.error("Error creating event:", err);
-      alert(err?.response?.data?.message || 'Error creating event');
+      addToast(err?.response?.data?.message || 'Error creating event', 'error');
     }
   };
 
@@ -100,6 +103,7 @@ function AdminEvents() {
       setIsViewModalOpen(true);
     } catch (err) {
       console.error("Failed to load registrations:", err);
+      addToast("Failed to load registrations", "error");
       setRegistrations([]);
       setIsViewModalOpen(true);
     }
@@ -112,9 +116,9 @@ function AdminEvents() {
     try {
       const url = await uploadEventImage(file);
       setForm({ ...form, image: url });
-      alert("Image uploaded successfully!");
+      addToast("Image uploaded successfully!", "success");
     } catch (err) {
-      alert("Image upload failed");
+      addToast("Image upload failed", "error");
     }
   };
 
@@ -122,9 +126,12 @@ function AdminEvents() {
   const handleDelete = async (id) => {
     try {
       await deleteEvent(id);
+      addToast("Event deleted successfully", "success");
       fetchEvents();
     } catch (err) {
       console.error("Error deleting event:", err);
+      addToast("Error deleting event:", err);
+      addToast(err?.response?.data?.message || 'Error deleting event', 'error');
     }
   };
 

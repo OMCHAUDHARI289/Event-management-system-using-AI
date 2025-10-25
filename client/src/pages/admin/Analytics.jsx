@@ -37,6 +37,7 @@ import {
 } from "../../services/adminService";
 import AIFeedbackSummary from "../../components/admin/AIFeedbackSummary";
 import { exportToExcel } from "../../utils/exportData";
+import { useToast } from "../../pages/common/Toast";
 
 /**
  * AdminAnalytics
@@ -49,7 +50,7 @@ function AdminAnalytics() {
   const [selectedPeriod, setSelectedPeriod] = useState("month");
   const [showSummaryPopup, setShowSummaryPopup] = useState(false);
   const [showExportOptions, setShowExportOptions] = useState(false);
-
+  const { addToast } = useToast();
   // analytics data
   const [eventStats, setEventStats] = useState([]);
   const [eventsList, setEventsList] = useState([]);
@@ -103,6 +104,7 @@ function AdminAnalytics() {
             "Sample Comments": ev.sampleComments.join("; "),
             "AI Summary": ev.aiSummary?.summary || "-"
           })),
+          addToast("Exported feedback overview successfully!", "success"),
           "FeedbackOverview"
         );
         break;
@@ -138,7 +140,7 @@ function AdminAnalytics() {
         break;
 
       default:
-        console.warn("Unknown export type:", type);
+        add
     }
   };
 
@@ -151,6 +153,7 @@ function AdminAnalytics() {
       const feedback = await getEventFeedback(eventId); // returns array or []
       if (!Array.isArray(feedback)) {
         console.warn(`getEventFeedback for ${eventId} returned non-array, falling back.`);
+        addToast("Failed to load event feedback", "error");
         return { itemsCount: 0, feedback: [], sampleComments: [], averageRating: "N/A" };
       }
 
@@ -169,6 +172,7 @@ function AdminAnalytics() {
       };
     } catch (err) {
       console.error("safeGetEventFeedback error:", err?.message || err);
+      addToast("Failed to load event feedback", "error");
       return { itemsCount: 0, feedback: [], sampleComments: [], averageRating: "N/A" };
     }
   };
@@ -238,6 +242,7 @@ function AdminAnalytics() {
           }
         } catch (aiErr) {
           console.warn(`AI summary failed for ${id}:`, aiErr?.message || aiErr);
+          addToast("Failed to generate AI summary", "error");
           aiSummary = null;
         }
 
@@ -256,7 +261,7 @@ function AdminAnalytics() {
       setFeedbackOverview(items);
     } catch (err) {
       console.error("fetchFeedbackOverview overall error:", err);
-      setFeedbackError("Failed to load feedback overview");
+      addToast("Failed to load feedback overview", "error");
       setFeedbackOverview([]);
     } finally {
       setLoadingFeedbackOverview(false);
@@ -306,7 +311,8 @@ function AdminAnalytics() {
         // Fetch feedback overview for events (pass list to avoid double fetching inside function)
         await fetchFeedbackOverview(evList);
       } catch (err) {
-        console.error('Failed to load analytics:', err);
+        console.error("Failed to load analytics data:", err);
+        addToast("Failed to load analytics data", "error");
       }
     };
 

@@ -9,6 +9,32 @@ const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
   return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 };
+//-------------------- AUTHENTICATION --------------------
+export const getAdminProfile = async () => {
+  const res = await axios.get(`${API_BASE}/profile`, getAuthHeaders());
+  return res.data;
+};
+
+export const updateAdminProfile = async (updateData) => {
+  try {
+    const res = await axios.put(`${API_BASE}/profile`, updateData, getAuthHeaders());
+    return res.data.admin; // matches backend return
+  } catch (err) {
+    console.error("Error updating admin profile:", err);
+    throw err;
+  }
+};
+
+// Change admin password (logged-in admin)
+export const changeAdminPassword = async ({ currentPassword, newPassword }) => {
+  try {
+    const res = await axios.put(`${API_BASE}/profile/password`, { currentPassword, newPassword }, getAuthHeaders());
+    return res.data;
+  } catch (err) {
+    console.error("Error changing admin password:", err.response?.data || err.message || err);
+    throw err;
+  }
+};
 
 // -------------------- USERS / MEMBERS --------------------
 
@@ -85,11 +111,6 @@ export const getProfile = async (id) => {
   return res.data.user;
 };
 
-// Update profile
-export const updateProfile = async (id, updates) => {
-  const res = await axios.put(`${API_BASE}/profile/${id}`, updates);
-  return res.data.user;
-};
 
 // -------------------- EVENTS --------------------
 

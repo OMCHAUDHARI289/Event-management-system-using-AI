@@ -6,6 +6,125 @@ const sendEmail = require('../config/email');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
 
+// ======================== CONTROLLERS ========================
+//admin controller functions
+async function getAdminProfile(req, res) {
+  try {
+    const admin = await User.findById(req.user._id).lean();
+    if (!admin || admin.role !== 'admin') {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    res.json({
+      id: admin._id,
+      name: admin.name,
+      email: admin.email,
+      phone: admin.phone || '',
+      department: admin.department || '',
+      location: admin.location || '',
+      bio: admin.bio || '',
+      profileImage: admin.profileImage || '',
+      bannerImage: admin.bannerImage || '',
+      role: admin.role,
+      certificates: admin.certificates || [],
+      achievements: admin.achievements || []
+    });
+  } catch (error) {
+    console.error('Admin getMyProfile error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// UPDATE ADMIN PROFILE
+async function updateAdminProfile(req, res) {
+  try {
+    const allowedFields = [
+      'name',
+      'email',
+      'phone',
+      'department',
+      'location',
+      'bio',
+      'profileImage',
+      'bannerImage',
+      'certificates',
+      'achievements'
+    ];
+
+    // Build updates object
+    const updates = {};
+    allowedFields.forEach(key => {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    });
+
+    console.log('Admin profile update payload:', updates); // debug
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid fields to update' });
+    }
+
+    const updatedAdmin = await User.findOneAndUpdate(
+      { _id: req.user._id, role: 'admin' },
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedAdmin) {
+      return res.status(404).json({ message: 'Admin not found or unauthorized' });
+    }
+
+    res.status(200).json({
+      message: 'Admin profile updated successfully',
+      admin: updatedAdmin
+    });
+  } catch (err) {
+    console.error('Update admin profile error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+}
+
+// Change password for authenticated admin
+async function changeAdminPassword(req, res) {
+  try {
+    const adminId = req.user && (req.user._id || req.user.id);
+    if (!adminId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Both currentPassword and newPassword are required" });
+    }
+
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
+      return res.status(400).json({ message: "New password must be at least 8 characters long" });
+    }
+
+    const admin = await User.findById(adminId).select('+password'); // ensure password is present
+    if (!admin) return res.status(404).json({ message: "Admin not found" });
+
+    // Verify role if desired
+    if (admin.role !== "admin") return res.status(403).json({ message: "Forbidden" });
+
+    // Compare current password
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    // Hash & save new password
+    const hashed = await bcrypt.hash(newPassword, 10);
+    admin.password = hashed;
+    await admin.save();
+
+    // Optional: Invalidate sessions/tokens (depends on how you manage tokens)
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error("changeAdminPassword error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+}
+
+
 // ======================== USERS / MEMBERS ========================
 
 // Get all students
@@ -220,24 +339,6 @@ async function getProfile(req, res) {
     res.status(200).json({ user });
   } catch (error) {
     console.error('Get profile error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-}
-
-// Update profile
-async function updateProfile(req, res) {
-  try {
-    const { id } = req.params;
-    const allowedFields = ['name', 'email', 'phone', 'branch', 'year', 'position', 'department', 'location', 'bio'];
-    const updates = {};
-    for (const key of allowedFields) {
-      if (key in req.body) updates[key] = req.body[key];
-    }
-    const updated = await User.findByIdAndUpdate(id, updates, { new: true }).select('-password');
-    if (!updated) return res.status(404).json({ message: 'User not found' });
-    res.status(200).json({ user: updated });
-  } catch (error) {
-    console.error('Update profile error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 }
@@ -786,6 +887,10 @@ async function markAttendance(req, res) {
 
 module.exports = {
   // USERS
+  getAdminProfile,
+  updateAdminProfile,
+  changeAdminPassword,
+
   getAllStudents,
   getAllClubMembers,
   addClubMember,
@@ -794,7 +899,6 @@ module.exports = {
   deleteClubMember,
   deleteStudent,
   getProfile,
-  updateProfile,
   // EVENTS
   getEvents,
   getEventRegistrations,

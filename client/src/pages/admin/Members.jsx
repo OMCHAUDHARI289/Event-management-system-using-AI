@@ -13,6 +13,7 @@ import {
   deleteStudent
 } from '../../services/adminService';
 import DeletePopup from "../common/ConfirmModel.jsx";
+import { useToast } from "../../pages/common/Toast";  
 
 function AdminMembers() {
   const [view, setView] = useState("club");
@@ -21,7 +22,7 @@ function AdminMembers() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
-
+  const { addToast } = useToast();
   const [clubMembers, setClubMembers] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -67,6 +68,7 @@ function AdminMembers() {
       setStudents(students || []);
     } catch (err) {
       console.error("Error fetching data:", err);
+      addToast('Error fetching members or students', 'error');
     } finally {
       setLoading(false);
     }
@@ -102,10 +104,11 @@ function AdminMembers() {
 
       setAddForm({ name: "", email: "", password: "", role: "clubMember|Member" });
       setShowAddForm(false);
+      addToast(`${created.name} added successfully!`, 'success');
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to add user';
       console.error("Error adding user:", msg);
-      alert(msg);
+      addToast(msg, 'error');
     }
   };
 
@@ -114,7 +117,7 @@ function AdminMembers() {
     const id = getId(selectedStudent);
     if (!id) {
       console.error("Promote attempted with missing id", selectedStudent);
-      alert("Cannot promote: missing student id.");
+      addToast("Cannot promote: missing student id.", "error");
       return;
     }
     try {
@@ -126,26 +129,28 @@ function AdminMembers() {
       setStudents(prev => prev.filter(s => getId(s) !== id));
       setShowPromoteModal(false);
       setSelectedStudent(null);
+      addToast(`${newMember.name} promoted to ${promoteForm.position} successfully!`, 'success');
       setPromoteForm({ position: "Member" });
     } catch (err) {
       console.error("Error promoting student:", err);
-      alert('Failed to promote student');
+      addToast('Failed to promote student', 'error');
     }
   };
 
   const handleDemote = async (member) => {
     const id = getId(member);
     if (!id) {
-      alert("Cannot demote: missing member ID.");
+      addToast("Cannot demote: missing member ID.", "error");
       return;
     }
     try {
       const demotedStudent = await demoteClubMember(id);
       setClubMembers(prev => prev.filter(m => getId(m) !== id));
       setStudents(prev => [...prev, demotedStudent]);
+      addToast(`${demotedStudent.name} demoted to student successfully!`, 'success');
     } catch (err) {
       console.error("Failed to demote member:", err);
-      alert("Failed to demote member.");
+      addToast("Failed to demote member.", "error");
     }
   };
 
@@ -159,11 +164,12 @@ function AdminMembers() {
   const openDeletePopup = (itemOrId, type, name) => {
     const id = getId(itemOrId);
     if (!id) {
-      alert("Cannot delete: missing item id.");
+      addToast("Cannot delete: missing item id.", "error");
       return;
     }
     setDeleteTarget({ id, type, name });
     setDeletePopupOpen(true);
+    addToast(`${deleteTarget.name} deleted successfully!`, 'success');
   };
 
   const handleDeleteConfirmed = async () => {
@@ -180,7 +186,7 @@ function AdminMembers() {
       }
     } catch (err) {
       console.error("Error deleting member:", err);
-      alert("Failed to delete user");
+      addToast("Failed to delete user", "error");
     } finally {
       setDeletePopupOpen(false);
       setDeleteTarget({ id: null, type: "", name: "" });

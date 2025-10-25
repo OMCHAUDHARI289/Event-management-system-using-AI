@@ -6,6 +6,10 @@ const upload = multer({ dest: 'uploads/' }); // Temporary storage for uploaded f
 
 const {
   // USERS / MEMBERS
+  getAdminProfile,
+  updateAdminProfile, 
+  changeAdminPassword,
+
   getAllStudents,
   getAllClubMembers,
   addClubMember,
@@ -14,7 +18,6 @@ const {
   deleteClubMember,
   deleteStudent,
   getProfile,
-  updateProfile,
   // EVENTS
   getEvents,
   getEventById,
@@ -39,6 +42,13 @@ const {
   //ATTENDANCE
   markAttendance,
 } = require('../controllers/adminController');
+const auth = require('../middlewares/authMiddleware');
+
+// Middleware to verify admin access can be added here
+// Admin Routes
+router.get('/profile', auth, getAdminProfile);
+router.put('/profile', auth, updateAdminProfile);
+router.put('/profile/password', auth, changeAdminPassword);
 
 // -------------------- USERS / MEMBERS --------------------
 
@@ -62,7 +72,6 @@ router.delete('/students/:id', deleteStudent);
 
 // Profile routes
 router.get('/profile/:id', getProfile);
-router.put('/profile/:id', updateProfile);
 
 // -------------------- EVENTS --------------------
 

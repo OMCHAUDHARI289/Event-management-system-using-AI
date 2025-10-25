@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema(
     position: { type: String, enum: ['Member', 'Volunteer'], default: 'Member' }, // new
     phone: { type: String },
     prn: { type: String },
+    bio: { type: String },
+    location: { type: String },
     department: { type: String },
     clubName: { type: String },
     profileImage: { type: String },
