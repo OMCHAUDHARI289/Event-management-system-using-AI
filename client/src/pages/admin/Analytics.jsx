@@ -1,71 +1,269 @@
+// src/pages/admin/AdminAnalytics.jsx
 import { useEffect, useState } from "react";
-import { BarChart3, TrendingUp, Star, MessageSquare, Download, Calendar, Users, Eye, ThumbsUp, Award } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { getAnalytics, getEvents, getEventCategories, getEventStats, getEventPopularity } from "../../services/adminService";
-import { summarizeFeedback } from "../../services/aiService";
+import {
+  BarChart3,
+  TrendingUp,
+  Star,
+  MessageSquare,
+  Download,
+  ChevronDown,
+  Calendar,
+  Users,
+  Award
+} from "lucide-react";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from "recharts";
+import {
+  getAnalytics,
+  getEvents,
+  getEventCategories,
+  getEventStats,
+  getEventPopularity,
+  getEventFeedback,
+  generateAISummary
+} from "../../services/adminService";
+import AIFeedbackSummary from "../../components/admin/AIFeedbackSummary";
+import { exportToExcel } from "../../utils/exportData";
+
+/**
+ * AdminAnalytics
+ * - Loads analytics + events
+ * - Builds a feedback overview per event (feedback count, avg rating, sample comments, AI summary)
+ * - Robust to invalid / HTML responses (falls back safely)
+ */
 
 function AdminAnalytics() {
   const [selectedPeriod, setSelectedPeriod] = useState("month");
-  const [aiFeedbackSummary, setAiFeedbackSummary] = useState("");
-  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [showSummaryPopup, setShowSummaryPopup] = useState(false);
+  const [showExportOptions, setShowExportOptions] = useState(false);
+
+  // analytics data
   const [eventStats, setEventStats] = useState([]);
   const [eventsList, setEventsList] = useState([]);
-   const [popularityData, setPopularityData] = useState([]);
-  const [selectedEventId, setSelectedEventId] = useState('');
-  const [aiError, setAiError] = useState(null);
-  const [aiItemsCount, setAiItemsCount] = useState(null);
-  const [aiSampleComments, setAiSampleComments] = useState([]);
-
+  const [popularityData, setPopularityData] = useState([]);
   const [summaryStats, setSummaryStats] = useState([
-    { title: "Total Events", value: "-", change: "", trend: "up", icon: Calendar, color: "from-blue-500 to-cyan-500" },
-    { title: "Total Users", value: "-", change: "", trend: "up", icon: Users, color: "from-purple-500 to-pink-500" },
-    { title: "Students", value: "-", change: "", trend: "up", icon: Users, color: "from-green-500 to-emerald-500" },
-    { title: "Club Members", value: "-", change: "", trend: "up", icon: Star, color: "from-orange-500 to-red-500" }
+    { title: "Total Events", value: "-", trend: "up", icon: Calendar, color: "from-blue-500 to-cyan-500" },
+    { title: "Total Users", value: "-", trend: "up", icon: Users, color: "from-purple-500 to-pink-500" },
+    { title: "Students", value: "-", trend: "up", icon: Users, color: "from-green-500 to-emerald-500" },
+    { title: "Club Members", value: "-", trend: "up", icon: Star, color: "from-orange-500 to-red-500" }
   ]);
 
-  // Category Distribution
+  // chart defaults (fallback)
   const [categoryData, setCategoryData] = useState([
-  { name: "Technical", value: 35, color: "#3b82f6" },
-  { name: "Cultural", value: 28, color: "#8b5cf6" },
-  { name: "Sports", value: 20, color: "#f97316" },
-  { name: "Workshop", value: 17, color: "#10b981" }
-]);
+    { name: "Technical", value: 35, color: "#3b82f6" },
+    { name: "Cultural", value: 28, color: "#8b5cf6" },
+    { name: "Sports", value: 20, color: "#f97316" },
+    { name: "Workshop", value: 17, color: "#10b981" }
+  ]);
 
-  // Sample feedback data (mock) - used for the Feedback Summary panel
-  const feedbackData = [
-    { id: 1, event: 'Tech Fest 2025', rating: 4.8, comments: 'Great event with excellent speakers', sentiment: 'positive', highlights: ['Great organization', 'Excellent speakers'] },
-    { id: 2, event: 'Coding Hackathon', rating: 4.5, comments: 'Challenging and fun', sentiment: 'positive', highlights: ['Challenging problems', 'Good prizes'] },
-  ];
+  // Feedback overview (derived/enriched events list)
+  // each item: { _id, title, date, avgRating, sentiment, feedbackCount, sampleComments: [], aiSummary: { summary, highlights } }
+  const [feedbackOverview, setFeedbackOverview] = useState([]);
+  const [loadingFeedbackOverview, setLoadingFeedbackOverview] = useState(false);
+  const [feedbackError, setFeedbackError] = useState(null);
 
-  // Reusable: fetch AI summary (scoped to an eventId or all events)
-  const fetchAISummary = async (eventId) => {
-    setLoadingSummary(true);
-    setAiError(null);
-    try {
-      const resp = await summarizeFeedback(null, eventId ? { eventId } : {});
-      if (!resp || !resp.summary) {
-        setAiError('AI summarization failed or returned empty result');
-        setAiFeedbackSummary('No summary available');
-        setAiItemsCount(null);
-        setAiSampleComments([]);
-      } else {
-        setAiFeedbackSummary(resp.summary);
-        setAiItemsCount(resp.itemsCount ?? null);
-        setAiSampleComments(resp.sampleComments || []);
-        setAiError(null);
-      }
-    } catch (err) {
-      console.error('Error fetching AI summary:', err);
-      setAiError('Failed to generate AI summary');
-      setAiFeedbackSummary('No summary available');
-      setAiItemsCount(null);
-      setAiSampleComments([]);
-    } finally {
-      setLoadingSummary(false);
+  // Helper: stable delay classes for Tailwind (avoid dynamic `delay-${...}`)
+  const delayClasses = ['delay-100', 'delay-200', 'delay-300', 'delay-400'];
+  const getDelayClass = (idx) => delayClasses[idx] || delayClasses[delayClasses.length - 1];
+
+  // sentiment helper
+  const ratingToSentiment = (rating) => {
+    if (rating === null || rating === undefined || rating === "N/A") return "unknown";
+    const n = Number(rating);
+    if (Number.isNaN(n)) return "unknown";
+    if (n >= 4) return "positive";
+    if (n >= 2) return "neutral";
+    return "negative";
+  };
+
+  const handleExport = (type) => {
+    switch(type) {
+      case "feedback":
+        if (!feedbackOverview || feedbackOverview.length === 0) return;
+        exportToExcel(
+          feedbackOverview.map(ev => ({
+            Event: ev.title,
+            Date: ev.date ? new Date(ev.date).toLocaleDateString() : "-",
+            "Average Rating": ev.avgRating ?? "-",
+            Sentiment: ev.sentiment,
+            "Feedback Count": ev.feedbackCount,
+            "Sample Comments": ev.sampleComments.join("; "),
+            "AI Summary": ev.aiSummary?.summary || "-"
+          })),
+          "FeedbackOverview"
+        );
+        break;
+
+      case "summary":
+        exportToExcel(
+          summaryStats.map(stat => ({
+            Title: stat.title,
+            Value: stat.value,
+          })),
+          "SummaryStats"
+        );
+        break;
+
+      case "popularity":
+        exportToExcel(
+          popularityData.map(ev => ({
+            Event: ev.name,
+            Popularity: ev.popularity,
+          })),
+          "EventPopularity"
+        );
+        break;
+
+      case "categories":
+        exportToExcel(
+          categoryData.map(cat => ({
+            Category: cat.name,
+            Count: cat.value,
+          })),
+          "EventCategories"
+        );
+        break;
+
+      default:
+        console.warn("Unknown export type:", type);
     }
   };
 
-  // Fetch all data on mount
+  /**
+   * Safe wrapper: fetch feedback for a single event using adminService.getEventFeedback
+   * The service already uses axios; still guard against malformed responses.
+   */
+  const safeGetEventFeedback = async (eventId) => {
+    try {
+      const feedback = await getEventFeedback(eventId); // returns array or []
+      if (!Array.isArray(feedback)) {
+        console.warn(`getEventFeedback for ${eventId} returned non-array, falling back.`);
+        return { itemsCount: 0, feedback: [], sampleComments: [], averageRating: "N/A" };
+      }
+
+      // get averageRating by scanning feedback objects (service sometimes returns only feedback array)
+      const ratings = feedback.map(f => Number(f.rating)).filter(r => !Number.isNaN(r));
+      const averageRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2) : "N/A";
+
+      // sample comments
+      const sampleComments = feedback.slice(0, 5).map(f => f.comments || "").filter(Boolean);
+
+      return {
+        itemsCount: feedback.length,
+        feedback,
+        sampleComments,
+        averageRating
+      };
+    } catch (err) {
+      console.error("safeGetEventFeedback error:", err?.message || err);
+      return { itemsCount: 0, feedback: [], sampleComments: [], averageRating: "N/A" };
+    }
+  };
+
+  /**
+   * Build the feedback overview for all events.
+   * - eventsParam: optional pre-fetched events array. If not provided, will call getEvents().
+   * - Fetches feedback for each event in parallel and optionally fetches AI summary (from generateAISummary)
+   * - Resilient to single-endpoint failures (returns placeholder entries)
+   */
+  const fetchFeedbackOverview = async (eventsParam) => {
+    setLoadingFeedbackOverview(true);
+    setFeedbackError(null);
+
+    try {
+      // ensure events array
+      let events = Array.isArray(eventsParam) ? eventsParam : null;
+      if (!events) {
+        const ev = await getEvents();
+        events = Array.isArray(ev) ? ev : (ev?.events || []);
+      }
+
+      // guard
+      if (!Array.isArray(events) || events.length === 0) {
+        setFeedbackOverview([]);
+        return;
+      }
+
+      // Parallel fetch per-event feedback, then optional AI summary
+      const items = await Promise.all(events.map(async (ev) => {
+        const id = ev._id || ev.id || (ev._doc && ev._doc._id) || null;
+        if (!id) {
+          return {
+            _id: null,
+            title: ev.title || ev.name || "Unnamed",
+            date: ev.date,
+            avgRating: "N/A",
+            sentiment: "unknown",
+            feedbackCount: 0,
+            sampleComments: [],
+            aiSummary: null
+          };
+        }
+
+        // 1) Feedback (safe)
+        const feedbackData = await safeGetEventFeedback(id);
+        const avgRating = feedbackData.averageRating ?? "N/A";
+        const sentiment = ratingToSentiment(avgRating);
+        const feedbackCount = feedbackData.itemsCount ?? (Array.isArray(feedbackData.feedback) ? feedbackData.feedback.length : 0);
+        const sampleComments = Array.isArray(feedbackData.sampleComments) ? feedbackData.sampleComments : [];
+
+        // 2) AI summary (best-effort) - use generateAISummary service which posts to /api/ai/summarize-feedback
+        let aiSummary = null;
+        try {
+          // Only call AI summary if there is feedback to summarize
+          if (feedbackCount > 0) {
+            const aiRes = await generateAISummary(id);
+            // aiRes expected shape: { summary, highlights, sampleComments, itemsCount, averageRating }
+            if (aiRes && typeof aiRes === "object") {
+              aiSummary = {
+                summary: aiRes.summary ?? "",
+                highlights: Array.isArray(aiRes.highlights) ? aiRes.highlights : []
+              };
+            } else {
+              aiSummary = null;
+            }
+          }
+        } catch (aiErr) {
+          console.warn(`AI summary failed for ${id}:`, aiErr?.message || aiErr);
+          aiSummary = null;
+        }
+
+        return {
+          _id: id,
+          title: ev.title || ev.name || "Untitled Event",
+          date: ev.date,
+          avgRating,
+          sentiment,
+          feedbackCount,
+          sampleComments,
+          aiSummary
+        };
+      }));
+
+      setFeedbackOverview(items);
+    } catch (err) {
+      console.error("fetchFeedbackOverview overall error:", err);
+      setFeedbackError("Failed to load feedback overview");
+      setFeedbackOverview([]);
+    } finally {
+      setLoadingFeedbackOverview(false);
+    }
+  };
+
+  // Load analytics and events on mount
   useEffect(() => {
     const fetchAllData = async () => {
       try {
@@ -87,12 +285,13 @@ function AdminAnalytics() {
         ]);
 
         // Event Stats (line chart)
-        setEventStats(stats || (analytics?.monthly?.map(m => ({
+        const computedStats = stats || (analytics?.monthly?.map(m => ({
           month: (m.month || '').slice(5),
           events: m.events,
           registrations: m.registrations,
           attendance: Math.round((m.registrations || 0) * 0.8)
-        })) || []));
+        })) || []);
+        setEventStats(computedStats);
 
         // Event Categories (pie chart)
         setCategoryData(categories || []);
@@ -100,11 +299,12 @@ function AdminAnalytics() {
         // Event Popularity (bar chart)
         setPopularityData(popularity || []);
 
-        // Events List (for AI feedback dropdown)
-        setEventsList(events || []);
+        // Events List (for feedback overview)
+        const evList = Array.isArray(events) ? events : (events?.events || []);
+        setEventsList(evList);
 
-        // Fetch AI Summary (all events initially)
-        await fetchAISummary(selectedEventId);
+        // Fetch feedback overview for events (pass list to avoid double fetching inside function)
+        await fetchFeedbackOverview(evList);
       } catch (err) {
         console.error('Failed to load analytics:', err);
       }
@@ -114,7 +314,19 @@ function AdminAnalytics() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
+  // Styles helper for sentiment badge
+  const sentimentBadgeClass = (sentiment) => {
+    switch (sentiment) {
+      case "positive":
+        return "bg-green-500/20 text-green-300";
+      case "negative":
+        return "bg-red-500/20 text-red-300";
+      case "neutral":
+        return "bg-yellow-500/20 text-yellow-300";
+      default:
+        return "bg-gray-500/20 text-gray-300";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
@@ -125,38 +337,20 @@ function AdminAnalytics() {
       </div>
 
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) translateX(0px); }
-          50% { transform: translateY(-20px) translateX(10px); }
-        }
-        @keyframes float-delayed {
-          0%, 100% { transform: translateY(0px) translateX(0px); }
-          50% { transform: translateY(20px) translateX(-10px); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-        .animate-float-delayed {
-          animation: float-delayed 8s ease-in-out infinite;
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out forwards;
-        }
-        .animate-scaleIn {
-          animation: scaleIn 0.3s ease-out forwards;
-        }
-        .delay-100 { animation-delay: 0.1s; opacity: 0; }
-        .delay-200 { animation-delay: 0.2s; opacity: 0; }
-        .delay-300 { animation-delay: 0.3s; opacity: 0; }
-        .delay-400 { animation-delay: 0.4s; opacity: 0; }
+        @keyframes float {0%,100%{transform:translateY(0px) translateX(0px);}50%{transform:translateY(-20px) translateX(10px);} }
+        @keyframes float-delayed {0%,100%{transform:translateY(0px) translateX(0px);}50%{transform:translateY(20px) translateX(-10px);} }
+        @keyframes fadeIn {from{opacity:0;}to{opacity:1;} }
+        @keyframes scaleIn {from{opacity:0;transform:scale(0.95);}to{opacity:1;transform:scale(1);} }
+        @keyframes slideIn {from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);} }
+        .animate-float{animation:float 6s ease-in-out infinite;}
+        .animate-float-delayed{animation:float-delayed 8s ease-in-out infinite;}
+        .animate-fadeIn{animation:fadeIn 0.3s ease-out forwards;}
+        .animate-scaleIn{animation:scaleIn 0.3s ease-out forwards;}
+        .animate-slideIn{animation:slideIn 0.3s ease-out forwards;}
+        .delay-100{animation-delay:0.1s;opacity:0;}
+        .delay-200{animation-delay:0.2s;opacity:0;}
+        .delay-300{animation-delay:0.3s;opacity:0;}
+        .delay-400{animation-delay:0.4s;opacity:0;}
       `}</style>
 
       <div className="relative z-10 p-4 sm:p-6 lg:p-8">
@@ -171,21 +365,47 @@ function AdminAnalytics() {
               <p className="text-white/60">Comprehensive event insights and reports</p>
             </div>
           </div>
-          
-          <div className="flex items-center space-x-3">
-            <select
-              value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="week" className="bg-slate-800">Last Week</option>
-              <option value="month" className="bg-slate-800">Last Month</option>
-              <option value="year" className="bg-slate-800">Last Year</option>
-            </select>
-            <button className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-2 rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
-            </button>
+
+          <div className="flex items-center space-x-3" style={{ zIndex: 9999, position: 'relative' }}>
+            {/* Export Options - Animated Inline Buttons */}
+            <div className="flex items-center space-x-2">
+              {showExportOptions && (
+                <>
+                  {[
+                    { label: "Feedback", type: "feedback", icon: MessageSquare, color: "from-purple-500 to-pink-500", delay: "0ms" },
+                    { label: "Stats", type: "summary", icon: TrendingUp, color: "from-blue-500 to-cyan-500", delay: "100ms" },
+                    { label: "Popularity", type: "popularity", icon: Award, color: "from-yellow-500 to-orange-500", delay: "200ms" },
+                    { label: "Categories", type: "categories", icon: BarChart3, color: "from-indigo-500 to-purple-500", delay: "300ms" },
+                  ].map((item, idx) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          handleExport(item.type);
+                          setShowExportOptions(false);
+                        }}
+                        className="flex items-center space-x-2 bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 text-white font-medium px-4 py-2.5 rounded-xl transition-all duration-300 hover:scale-105 animate-slideIn"
+                        style={{ animationDelay: item.delay, opacity: 0 }}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="text-sm">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+
+              {/* Main Export Button */}
+              <button
+                onClick={() => setShowExportOptions(!showExportOptions)}
+                className={`flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 ${showExportOptions ? 'ring-2 ring-white/30' : ''}`}
+              >
+                <Download className="w-5 h-5" />
+                <span>Export</span>
+                <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showExportOptions ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -194,20 +414,12 @@ function AdminAnalytics() {
           {summaryStats.map((stat, idx) => {
             const Icon = stat.icon;
             return (
-              <div
-                key={idx}
-                className={`
-                  bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6
-                  hover:bg-white/10 transition-all duration-300 cursor-pointer
-                  hover:shadow-2xl hover:shadow-green-500/20
-                  transform hover:scale-105 animate-scaleIn delay-${idx * 100}
-                `}
-              >
+              <div key={idx} className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300 cursor-pointer hover:shadow-2xl hover:shadow-green-500/20 transform hover:scale-105 animate-scaleIn ${getDelayClass(idx)}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center shadow-lg`}>
                     <Icon className="w-6 h-6 text-white" />
                   </div>
-                  <div className="flex items-center space-x-1 text-green-400 text-sm font-semibold">
+                  <div className="flex items-center space-x-1 text-green-400 text-sm">
                     <TrendingUp className="w-4 h-4" />
                     <span>{stat.change}</span>
                   </div>
@@ -219,7 +431,7 @@ function AdminAnalytics() {
           })}
         </div>
 
-        {/* Charts Row 1 */}
+        {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Event Statistics */}
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 animate-scaleIn delay-200">
@@ -236,14 +448,7 @@ function AdminAnalytics() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis dataKey="month" stroke="rgba(255,255,255,0.6)" style={{ fontSize: '12px' }} />
                   <YAxis stroke="rgba(255,255,255,0.6)" style={{ fontSize: '12px' }} />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '12px',
-                      color: '#fff'
-                    }}
-                  />
+                  <Tooltip contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'12px', color:'#fff' }} />
                   <Legend wrapperStyle={{ color: 'rgba(255,255,255,0.8)' }} />
                   <Line type="monotone" dataKey="events" stroke="#3b82f6" strokeWidth={3} name="Events" />
                   <Line type="monotone" dataKey="registrations" stroke="#8b5cf6" strokeWidth={3} name="Registrations" />
@@ -278,14 +483,7 @@ function AdminAnalytics() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '12px',
-                      color: '#fff'
-                    }}
-                  />
+                  <Tooltip contentStyle={{ backgroundColor:'rgba(15,23,42,0.9)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'12px', color:'#fff' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -311,142 +509,61 @@ function AdminAnalytics() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="name" stroke="rgba(255,255,255,0.6)" style={{ fontSize: '12px' }} />
-                <YAxis stroke="rgba(255,255,255,0.6)" style={{ fontSize: '12px' }} />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '12px',
-                    color: '#fff'
-                  }}
-                />
-                <Legend wrapperStyle={{ color: 'rgba(255,255,255,0.8)' }} />
-                <Bar dataKey="popularity" fill="url(#colorPopularity)" radius={[8, 8, 0, 0]} name="Popularity Score" />
+                <XAxis dataKey="name" stroke="rgba(255,255,255,0.6)" style={{ fontSize:'12px' }}/>
+                <YAxis stroke="rgba(255,255,255,0.6)" style={{ fontSize:'12px' }}/>
+                <Tooltip contentStyle={{ backgroundColor:'rgba(15,23,42,0.9)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'12px', color:'#fff'}} />
+                <Legend wrapperStyle={{ color:'rgba(255,255,255,0.8)' }} />
+                <Bar dataKey="popularity" fill="url(#colorPopularity)" radius={[8,8,0,0]} name="Popularity Score"/>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Feedback & Reports */}
+        {/* Feedback Overview & Reports */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Feedback Summary */}
+          {/* Feedback Overview */}
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 animate-scaleIn delay-400">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-bold text-white mb-1">Event Feedback</h2>
-                <p className="text-white/60 text-sm">Recent ratings and reviews</p>
-
-          {/* AI Feedback Summary (placed outside of SVG container) */}
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 animate-scaleIn delay-400 mt-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-white mb-1">AI Feedback Summary</h2>
-                <p className="text-white/60 text-sm">Summarized insights from attendee feedback (server-aggregated)</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <select
-                  value={selectedEventId}
-                  onChange={(e) => setSelectedEventId(e.target.value)}
-                  className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
-                >
-                  <option value=''>All events</option>
-                  {Array.isArray(eventsList) && eventsList.map(ev => (
-                    <option key={ev._id || ev.id} value={ev._id || ev.id}>{ev.title || ev.name || `Event ${ev._id || ev.id}`}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={async () => {
-                    setLoadingSummary(true);
-                    setAiError(null);
-                    try {
-                      const resp = await summarizeFeedback(null, selectedEventId ? { eventId: selectedEventId } : {});
-                      if (!resp || !resp.summary) {
-                        setAiError('No summary returned');
-                        setAiFeedbackSummary('No summary available');
-                        setAiItemsCount(null);
-                        setAiSampleComments([]);
-                      } else {
-                        setAiFeedbackSummary(resp.summary);
-                        setAiItemsCount(resp.itemsCount ?? null);
-                        setAiSampleComments(resp.sampleComments || []);
-                      }
-                    } catch (err) {
-                      console.error(err);
-                      setAiError('Failed to fetch AI summary');
-                    } finally {
-                      setLoadingSummary(false);
-                    }
-                  }}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm"
-                >
-                  {loadingSummary ? 'Generating...' : 'Refresh'}
-                </button>
-              </div>
-            </div>
-
-            <div className="whitespace-pre-wrap text-white/90 text-sm bg-white/5 p-4 rounded-lg border border-white/5">
-              {aiError && <div className="text-red-400 mb-2">{aiError}</div>}
-              {loadingSummary ? (
-                <div className="text-white/60">Generating summary...</div>
-              ) : (
-                  <div>
-                    <div className="text-white/80 mb-2">{aiFeedbackSummary}</div>
-                    {aiItemsCount !== null && (
-                      <div className="text-white/60 text-sm mb-2">Items used for summary: {aiItemsCount}</div>
-                    )}
-                    {aiSampleComments && aiSampleComments.length > 0 && (
-                      <div className="text-white/60 text-xs">
-                        <div className="font-semibold text-white/80 mb-1">Sample comments:</div>
-                        <ul className="list-disc ml-5 space-y-1">
-                          {aiSampleComments.map((c, i) => (
-                            <li key={i}>{c}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-              )}
-            </div>
-          </div>
+                <h2 className="text-xl font-bold text-white mb-1">Feedback Overview</h2>
+                <p className="text-white/60 text-sm">Short per-event feedback & sentiment</p>
               </div>
               <MessageSquare className="w-5 h-5 text-purple-400" />
             </div>
-            <div className="space-y-4">
-              {feedbackData.map((feedback) => (
-                <div key={feedback.id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-300">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="text-white font-semibold mb-1">{feedback.event}</h3>
-                      <div className="flex items-center space-x-2 text-sm">
-                        <div className="flex items-center space-x-1">
-                          <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                          <span className="text-white font-semibold">{feedback.rating}</span>
-                        </div>
-                        <span className="text-white/40">•</span>
-                        <div className="flex items-center space-x-1 text-white/60">
-                          <MessageSquare className="w-4 h-4" />
-                          <span>{feedback.comments} comments</span>
-                        </div>
+
+            {loadingFeedbackOverview ? (
+              <div className="text-white/60">Loading feedback overview...</div>
+            ) : feedbackError ? (
+              <div className="text-red-400">{feedbackError}</div>
+            ) : feedbackOverview.length === 0 ? (
+              <div className="text-white/60">No feedback available yet.</div>
+            ) : (
+              <div className="space-y-4">
+                {feedbackOverview.map((ev) => (
+                  <div key={ev._id || ev.title} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-300 flex justify-between items-start">
+                    <div className="flex-1 pr-4">
+                      <h3 className="text-white font-semibold">{ev.title}</h3>
+                      <p className="text-white/60 text-sm mt-1">
+                        {ev.sampleComments && ev.sampleComments.length > 0 ? `"${ev.sampleComments[0]}"` : <span className="italic">No sample comment</span>}
+                      </p>
+                      <p className="text-white/50 text-xs mt-2">
+                        {ev.feedbackCount ?? 0} feedback items
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col items-end">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${sentimentBadgeClass(ev.sentiment)}`}>
+                        {ev.sentiment}
+                      </span>
+                      <div className="flex items-center space-x-1 mt-2 text-white/80">
+                        <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                        <span>{ev.avgRating ? Number(ev.avgRating).toFixed(1) : "-"}</span>
                       </div>
                     </div>
-                    <span className={`
-                      px-3 py-1 rounded-full text-xs font-semibold
-                      ${feedback.sentiment === 'positive' ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}
-                    `}>
-                      {feedback.sentiment}
-                    </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {feedback.highlights.map((highlight, idx) => (
-                      <span key={idx} className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded-lg">
-                        {highlight}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Quick Reports */}
@@ -459,15 +576,17 @@ function AdminAnalytics() {
             </div>
             <div className="space-y-3">
               {[
-                { title: "Attendance Report", desc: "Complete attendance tracking", icon: Users, color: "from-blue-500 to-cyan-500" },
-                { title: "Revenue Report", desc: "Financial overview and analysis", icon: TrendingUp, color: "from-green-500 to-emerald-500" },
-                { title: "Feedback Summary", desc: "Compiled user feedback", icon: MessageSquare, color: "from-purple-500 to-pink-500" },
-                { title: "Event Performance", desc: "Detailed event metrics", icon: BarChart3, color: "from-orange-500 to-red-500" }
+                { title: "Feedback Summary", desc: "Compiled user feedback", icon: MessageSquare, color: "from-purple-500 to-pink-500" }
               ].map((report, idx) => {
                 const Icon = report.icon;
                 return (
                   <button
                     key={idx}
+                    onClick={() => {
+                      if (report.title === "Feedback Summary") {
+                        setShowSummaryPopup(true);
+                      }
+                    }}
                     className="w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 transition-all duration-300 group flex items-center space-x-4"
                   >
                     <div className={`w-12 h-12 bg-gradient-to-br ${report.color} rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}>
@@ -481,11 +600,24 @@ function AdminAnalytics() {
                   </button>
                 );
               })}
-{/* Duplicate AI Feedback Summary removed (we keep the one under Feedback) */}
-
             </div>
           </div>
         </div>
+
+        {/* Popup Modal */}
+        {showSummaryPopup && (
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn"
+            onClick={() => setShowSummaryPopup(false)}
+          >
+            <div
+              className="w-full max-w-6xl max-h-[90vh] shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <AIFeedbackSummary onClose={() => setShowSummaryPopup(false)} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

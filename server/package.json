@@ -11,17 +11,26 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@google-ai/generativelanguage": "^3.5.0",
+    "@google-cloud/aiplatform": "^5.11.0",
+    "@google/genai": "^1.27.0",
+    "@google/generative-ai": "^0.24.1",
     "@tensorflow/tfjs": "^4.22.0",
+    "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "json5": "^2.2.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.3",
     "multer": "^2.0.2",
+    "natural": "^8.1.0",
+    "node-summarizer": "^1.0.7",
     "nodemailer": "^7.0.7",
-    "openai": "^6.6.0"
+    "openai": "^6.6.0",
+    "stopwords": "^0.0.9"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

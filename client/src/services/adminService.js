@@ -3,6 +3,7 @@ import api from './api';
 
 // Base URL for admin APIs
 const API_BASE = "http://localhost:5000/api/admin"; // adjust if needed
+const AI_BASE = "http://localhost:5000/api/ai"; // adjust if needed
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -301,3 +302,30 @@ export const getEventPopularity = async () => {
   }
 };
 
+// -------------------- AI / MACHINE LEARNING --------------------
+
+// Get feedback data for a specific event (raw comments)
+export const getEventFeedback = async (eventId) => {
+  try {
+    const res = await axios.get(`${AI_BASE}/event-feedback/${eventId}`, getAuthHeaders());
+    return res.data.feedback || [];
+  } catch (err) {
+    console.error("Error fetching event feedback:", err);
+    return [];
+  }
+};
+
+// Generate AI summary for feedback
+export const generateAISummary = async (eventId = null) => {
+  try {
+    const res = await axios.post(
+      `${AI_BASE}/summarize-feedback${eventId ? `?eventId=${eventId}` : ""}`,
+      {},
+      getAuthHeaders()
+    );
+    return res.data; // { summary, highlights, sampleComments, itemsCount }
+  } catch (err) {
+    console.error("Error generating AI summary:", err);
+    throw err;
+  }
+};
