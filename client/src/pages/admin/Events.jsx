@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Calendar, Plus, X, Clock, MapPin, Users, Trash2, Edit, Eye, Filter } from "lucide-react";
 import { getEvents as getAllAdminEvents, createEvent, deleteEvent, uploadEventImage, getEventRegistrations } from "../../services/adminService";
-import ViewEventModal from "../../components/admin/ViewEventModal"; // adjust the path
+import ViewEventModal from "../../components/admin/ViewEventModal";
 import AdminEditEventModal from "../../components/admin/AdminEditEventModal";
 
-  function AdminEvents() {
+function AdminEvents() {
   const [events, setEvents] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState("all");
@@ -19,19 +19,41 @@ import AdminEditEventModal from "../../components/admin/AdminEditEventModal";
     price: "",
     category: "Technical",
   });
-  const [viewEvent, setViewEvent] = useState(null); // currently selected event
+  const [viewEvent, setViewEvent] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [registrations, setRegistrations] = useState([]);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  // Compute status based on current date and event date/time
+  const getEventStatus = (event) => {
+    const now = new Date();
+    
+    // Parse the event date properly
+    const eventDateOnly = new Date(event.date);
+    const [hours, minutes] = (event.time || "00:00").split(":");
+    const eventDateTime = new Date(eventDateOnly);
+    eventDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(now);
+    todayEnd.setHours(23, 59, 59, 999);
 
+    // If event date/time is in the past
+    if (eventDateTime < now) return "past";
+    
+    // If event is today (between today's start and end)
+    if (eventDateTime >= todayStart && eventDateTime <= todayEnd) return "ongoing";
+    
+    // Otherwise it's in the future
+    return "upcoming";
+  };
 
   // Fetch events
   const fetchEvents = async () => {
     try {
-    const data = await getAllAdminEvents();
+      const data = await getAllAdminEvents();
       setEvents(data);
     } catch (err) {
       console.error("Error fetching events:", err);
@@ -61,7 +83,7 @@ import AdminEditEventModal from "../../components/admin/AdminEditEventModal";
         capacity: Number(form.capacity || 0),
       };
       await createEvent(payload);
-      setForm({ image: "", title: "", description: "", date: "", time: "", venue: "", capacity: "", category: "Technical" });
+      setForm({ image: "", title: "", description: "", date: "", time: "", venue: "", capacity: "", price: "", category: "Technical" });
       setShowForm(false);
       fetchEvents();
     } catch (err) {
@@ -71,33 +93,30 @@ import AdminEditEventModal from "../../components/admin/AdminEditEventModal";
   };
 
   const handleViewEvent = async (event) => {
-  setViewEvent(event);
-  try {
-    const data = await getEventRegistrations(event._id); // fetch registration array
-    // normalize to array
-    setRegistrations(Array.isArray(data) ? data : (data && data.registrations ? data.registrations : []));
-    setIsViewModalOpen(true);
-  } catch (err) {
-    console.error("Failed to load registrations:", err);
-    setRegistrations([]);
-    setIsViewModalOpen(true);
-  }
-};
-
-
+    setViewEvent(event);
+    try {
+      const data = await getEventRegistrations(event._id);
+      setRegistrations(Array.isArray(data) ? data : (data && data.registrations ? data.registrations : []));
+      setIsViewModalOpen(true);
+    } catch (err) {
+      console.error("Failed to load registrations:", err);
+      setRegistrations([]);
+      setIsViewModalOpen(true);
+    }
+  };
 
   const handleImageUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+    const file = e.target.files[0];
+    if (!file) return;
 
-  try {
-    const url = await uploadEventImage(file);
-    setForm({ ...form, image: url });
-    alert("Image uploaded successfully!");
-  } catch (err) {
-    alert("Image upload failed");
-  }
-};
+    try {
+      const url = await uploadEventImage(file);
+      setForm({ ...form, image: url });
+      alert("Image uploaded successfully!");
+    } catch (err) {
+      alert("Image upload failed");
+    }
+  };
 
   // Delete event
   const handleDelete = async (id) => {
@@ -128,13 +147,16 @@ import AdminEditEventModal from "../../components/admin/AdminEditEventModal";
     }
   };
 
-  const filteredEvents = filter === "all" ? events : events.filter(e => e.status === filter);
+  const filteredEvents =
+    filter === "all"
+      ? events.map(e => ({ ...e, computedStatus: getEventStatus(e) }))
+      : events.filter((e) => getEventStatus(e) === filter).map(e => ({ ...e, computedStatus: getEventStatus(e) }));
 
   const eventCounts = {
     all: events.length,
-    upcoming: events.filter(e => e.status === "upcoming").length,
-    ongoing: events.filter(e => e.status === "ongoing").length,
-    past: events.filter(e => e.status === "past").length
+    upcoming: events.filter((e) => getEventStatus(e) === "upcoming").length,
+    ongoing: events.filter((e) => getEventStatus(e) === "ongoing").length,
+    past: events.filter((e) => getEventStatus(e) === "past").length,
   };
 
   return (
@@ -237,14 +259,14 @@ import AdminEditEventModal from "../../components/admin/AdminEditEventModal";
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
                 <div className="md:col-span-2">
-  <label className="block text-white/80 text-sm font-medium mb-2">Event Image</label>
-  <input
-    type="file"
-    accept="image/*"
-    onChange={handleImageUpload}
-    className="w-full text-white/70"
-  />
-</div>
+                  <label className="block text-white/80 text-sm font-medium mb-2">Event Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="w-full text-white/70"
+                  />
+                </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-white/80 text-sm font-medium mb-2">Event Title</label>
@@ -350,81 +372,86 @@ import AdminEditEventModal from "../../components/admin/AdminEditEventModal";
 
         {/* Events Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEvents.map((event, idx) => (
-            <div
-              key={event._id}
-              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-all duration-300 hover:shadow-2xl hover:shadow-orange-500/20 transform hover:scale-105 animate-scaleIn"
-              style={{ animationDelay: `${idx * 50}ms`, opacity: 0 }}
-            >
-              {/* Event Header with Gradient */}
-              <div className={`bg-gradient-to-r ${getStatusColor(event.status)} p-6 relative`}>
-                <div className="absolute top-4 right-4">
-                  <span className={`${getStatusBadge(event.status)} px-3 py-1 rounded-full text-xs font-semibold uppercase`}>
-                    {event.status}
-                  </span>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2 pr-20">{event.title}</h3>
-                <span className="text-white/80 text-sm">{event.category}</span>
-              </div>
-
-              {/* Event Body */}
-              <div className="p-6 space-y-4">
-                <p className="text-white/70 text-sm line-clamp-2">{event.description}</p>
-
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2 text-white/70">
-                    <Calendar className="w-4 h-4 flex-shrink-0" />
-                    <span className="text-sm">{new Date(event.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                  </div>
-
-                  <div className="flex items-center space-x-2 text-white/70">
-                    <Clock className="w-4 h-4 flex-shrink-0" />
-                    <span className="text-sm">{event.time}</span>
-                  </div>
-
-                  <div className="flex items-center space-x-2 text-white/70">
-                    <MapPin className="w-4 h-4 flex-shrink-0" />
-                    <span className="text-sm">{event.venue}</span>
-                  </div>
-                </div>
-
-                {/* Registration Progress */}
-                <div className="pt-4 border-t border-white/10">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-white/70 text-sm flex items-center space-x-1">
-                      <Users className="w-4 h-4" />
-                      <span>Registrations</span>
+          {filteredEvents.map((event, idx) => {
+            const currentStatus = event.computedStatus || getEventStatus(event);
+            return (
+              <div
+                key={event._id}
+                className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-all duration-300 hover:shadow-2xl hover:shadow-orange-500/20 transform hover:scale-105 animate-scaleIn"
+                style={{ animationDelay: `${idx * 50}ms`, opacity: 0 }}
+              >
+                {/* Event Header with Gradient */}
+                <div className={`bg-gradient-to-r ${getStatusColor(currentStatus)} p-6 relative`}>
+                  <div className="absolute top-4 right-4">
+                    <span className={`${getStatusBadge(currentStatus)} px-3 py-1 rounded-full text-xs font-semibold uppercase`}>
+                      {currentStatus}
                     </span>
-                    <span className="text-white font-semibold text-sm">{event.registrations}/{event.capacity}</span>
                   </div>
-                  <div className="w-full bg-white/10 rounded-full h-2">
-                    <div 
-                      className={`bg-gradient-to-r ${getStatusColor(event.status)} h-2 rounded-full transition-all duration-500`}
-                      style={{ width: `${(event.registrations / event.capacity) * 100}%` }}
-                    ></div>
-                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2 pr-20">{event.title}</h3>
+                  <span className="text-white/80 text-sm">{event.category}</span>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 pt-2">
-                  <button onClick={() => { handleViewEvent(event) }} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
-                    <Eye className="w-4 h-4" />
-                    <span className="text-sm">View</span>
-                  </button>
-                  <button onClick={() => {setSelectedEvent(event); setEditModalOpen(true);}} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
-                    <Edit className="w-4 h-4" />
-                    <span className="text-sm">Edit</span>
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(event._id)}
-                    className="bg-red-500/20 hover:bg-red-500 border border-red-500/30 text-red-400 hover:text-white p-2 rounded-lg transition-all duration-300"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                {/* Event Body */}
+                <div className="p-6 space-y-4">
+                  <p className="text-white/70 text-sm line-clamp-2">{event.description}</p>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2 text-white/70">
+                      <Calendar className="w-4 h-4 flex-shrink-0" />
+                      <span className="text-sm">{new Date(event.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    </div>
+
+                    <div className="flex items-center space-x-2 text-white/70">
+                      <Clock className="w-4 h-4 flex-shrink-0" />
+                      <span className="text-sm">{event.time}</span>
+                    </div>
+
+                    <div className="flex items-center space-x-2 text-white/70">
+                      <MapPin className="w-4 h-4 flex-shrink-0" />
+                      <span className="text-sm">{event.venue}</span>
+                    </div>
+                  </div>
+
+                  {/* Registration Progress */}
+                  <div className="pt-4 border-t border-white/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white/70 text-sm flex items-center space-x-1">
+                        <Users className="w-4 h-4" />
+                        <span>Registrations</span>
+                      </span>
+                      <span className="text-white font-semibold text-sm">{event.registrations}/{event.capacity}</span>
+                    </div>
+                    <div className="w-full bg-white/10 rounded-full h-2">
+                      <div 
+                        className={`bg-gradient-to-r ${getStatusColor(currentStatus)} h-2 rounded-full transition-all duration-500`}
+                        style={{ width: `${(event.registrations / event.capacity) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <button onClick={() => { handleViewEvent(event) }} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
+                      <Eye className="w-4 h-4" />
+                      <span className="text-sm">View</span>
+                    </button>
+                    {currentStatus !== "past" && (
+                    <button onClick={() => {setSelectedEvent(event); setEditModalOpen(true);}} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
+                      <Edit className="w-4 h-4" />
+                      <span className="text-sm">Edit</span>
+                    </button>
+                    )}
+                    <button 
+                      onClick={() => handleDelete(event._id)}
+                      className="bg-red-500/20 hover:bg-red-500 border border-red-500/30 text-red-400 hover:text-white p-2 rounded-lg transition-all duration-300"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Empty State */}
@@ -451,25 +478,22 @@ import AdminEditEventModal from "../../components/admin/AdminEditEventModal";
           </div>
         )}
     
- <ViewEventModal
-  isOpen={isViewModalOpen}
-  onClose={() => setIsViewModalOpen(false)}
-  event={viewEvent}
-  registrations={registrations} // now using the state
-/>
-<AdminEditEventModal
-  isOpen={editModalOpen}
-  onClose={() => setEditModalOpen(false)}
-  event={selectedEvent}
-  onUpdated={(updatedEvent) => {
-    // Refresh the event list after editing
-    setEvents((prev) =>
-      prev.map((ev) => (ev._id === updatedEvent._id ? updatedEvent : ev))
-    );
-  }}
-/>
-
-
+        <ViewEventModal
+          isOpen={isViewModalOpen}
+          onClose={() => setIsViewModalOpen(false)}
+          event={viewEvent}
+          registrations={registrations}
+        />
+        <AdminEditEventModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          event={selectedEvent}
+          onUpdated={(updatedEvent) => {
+            setEvents((prev) =>
+              prev.map((ev) => (ev._id === updatedEvent._id ? updatedEvent : ev))
+            );
+          }}
+        />
       </div>
     </div>
   );

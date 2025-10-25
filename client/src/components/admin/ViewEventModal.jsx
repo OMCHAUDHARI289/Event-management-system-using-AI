@@ -22,6 +22,35 @@ export default function ViewEventModal({ isOpen, onClose, event, registrations =
     return matchesSearch && matchesAttendance;
   });
 
+  const handleExportRegistrations = () => {
+  if (!registrations || registrations.length === 0) return;
+
+  const headers = ["Student Name", "Ticket Number", "Department", "Year", "Email", "Phone", "Attendance"];
+  const rows = registrations.map(r => [
+    `"${r.fullName || ''}"`,
+    `"${r.ticketNumber || ''}"`,
+    `"${r.department || ''}"`,
+    `"${r.year || ''}"`,
+    `"${r.email || ''}"`,
+    `"'${r.phone || ''}"`, // <-- force as text
+    `"${r.attended ? "Attended" : "Not Attended"}"`
+  ].join(","));
+
+  const csvContent = [headers.join(","), ...rows].join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", `${event?.title || "registrations"}_${Date.now()}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+
+
   // Stats
   const totalRegistered = registrations.length;
   const totalAttended = registrations.filter(r => r.attended).length;
@@ -205,7 +234,7 @@ export default function ViewEventModal({ isOpen, onClose, event, registrations =
                 </select>
 
                 {/* Export */}
-                <button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-all flex items-center space-x-2">
+                <button onClick={handleExportRegistrations} className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-all flex items-center space-x-2">
                   <Download className="w-4 h-4" />
                   <span>Export</span>
                 </button>

@@ -10,8 +10,7 @@ export default function AdminEditEventModal({ isOpen, onClose, event, onUpdated 
     time: "",
     venue: "",
     capacity: "",
-    price: "",
-    status: "upcoming",
+    price: ""
   });
 
   const [loading, setLoading] = useState(false);
@@ -28,8 +27,7 @@ export default function AdminEditEventModal({ isOpen, onClose, event, onUpdated 
         time: event.time || "",
         venue: event.venue || "",
         capacity: event.capacity?.toString() || "",
-        price: event.price?.toString() || "",
-        status: event.status || "upcoming",
+        price: event.price?.toString() || ""
       });
       setImagePreview(event.image || "");
       setErrors({});
@@ -104,8 +102,7 @@ export default function AdminEditEventModal({ isOpen, onClose, event, onUpdated 
       time: "",
       venue: "",
       capacity: "",
-      price: "",
-      status: "upcoming",
+      price: ""
     });
     setImagePreview("");
     setErrors({});
@@ -185,14 +182,6 @@ export default function AdminEditEventModal({ isOpen, onClose, event, onUpdated 
                 className={`w-full bg-white/10 border ${errors.price ? 'border-red-500/50':'border-white/20'} rounded-xl px-4 py-3 text-white`} />
               {errors.price && <p className="text-red-400 text-xs">{errors.price}</p>}
             </div>
-
-            <select value={formData.status} onChange={(e)=>handleChange('status', e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white">
-              <option value="upcoming">Upcoming</option>
-              <option value="ongoing">Ongoing</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
           </div>
 
           {/* Action Buttons */}
