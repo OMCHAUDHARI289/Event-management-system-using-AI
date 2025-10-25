@@ -15,7 +15,7 @@ const getAuthHeaders = () => {
 export const getClubMembers = async () => {
   try {
     const res = await api.get(`${API_BASE}/members`, getAuthHeaders());
-    return res.data.members; // array of members
+    return res.data.members || []; // array of members
   } catch (err) {
     console.error("Error fetching club members:", err);
     throw err;
@@ -55,7 +55,15 @@ export const promoteStudent = async (studentId, promotionData) => {
   }
 };
 
-
+export const demoteClubMember = async (memberId) => {
+  try {
+    const res = await axios.put(`${API_BASE}/club/${memberId}/demote`, {}, getAuthHeaders());
+    return res.data.user; // returned student object
+  } catch (err) {
+    console.error("Error demoting member:", err);
+    throw err;
+  }
+};
 
 // Delete a club member
 export const deleteClubMember = async (memberId) => {

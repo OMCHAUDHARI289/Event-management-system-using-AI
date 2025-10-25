@@ -11,24 +11,74 @@ const fs = require('fs');
 // Get all students
 async function getAllStudents(req, res) {
   try {
-    const students = await User.find({ role: 'student' }).select('-password');
-    res.status(200).json({ students });
-  } catch (error) {
-    console.error('Get students error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    // Fetch all users with role 'student'
+    const students = await User.find({ role: 'student' }).select('name email prn department phone');
+
+    // Map students to include eventsAttended
+    const result = await Promise.all(
+      students.map(async (student) => {
+        const attendedCount = await Registration.countDocuments({ userId: student._id, attended: true });
+        return {
+          _id: student._id,
+          name: student.name,
+          email: student.email,
+          prn: student.prn || '',
+          branch: student.department || '',
+          phone: student.phone || '',
+          eventsAttended: attendedCount,
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      total: result.length,
+      students: result,
+    });
+  } catch (err) {
+    console.error('Get students error:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+};
+
+// Get all club members - FIXED to return flat array
+// Get all club members with optional flexible filters
+async function getAllClubMembers(req, res) {
+  try {
+    const { department, position, year, branch } = req.query;
+
+    // Base query: only club members
+    const query = { role: 'clubMember' };
+
+    // Add optional filters (case-insensitive)
+    if (department) query.department = { $regex: `^${department}$`, $options: 'i' };
+    if (position) query.position = { $regex: `^${position}$`, $options: 'i' };
+    if (year) query.year = year;
+    if (branch) query.branch = { $regex: `^${branch}$`, $options: 'i' };
+
+    // Fetch members
+    const members = await User.find(query).select('-password');
+
+    // Normalize missing positions
+    const normalizedMembers = members.map(m => ({
+      ...m.toObject(),
+      position: m.position || 'Member',
+      department: m.department || '',
+      branch: m.branch || '',
+      year: m.year || ''
+    }));
+
+    res.status(200).json({
+      success: true,
+      total: normalizedMembers.length,
+      members: normalizedMembers
+    });
+  } catch (err) {
+    console.error('Get club members error:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 }
 
-// Get all club members
-async function getAllClubMembers(req, res) {
-  try {
-    const members = await User.find({ role: 'clubMember' }).select('-password');
-    res.status(200).json({ members });
-  } catch (error) {
-    console.error('Get club members error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-}
 
 // Add a new club member/student
 async function addClubMember(req, res) {
@@ -105,6 +155,27 @@ async function promoteToClubMember(req, res) {
   } catch (error) {
     console.error('Promote error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+}
+
+// Demote a club member to student
+async function demoteClubMember(req, res) {
+  try {
+    const { id } = req.params;
+
+    const member = await User.findById(id);
+    if (!member) return res.status(404).json({ message: "Member not found" });
+    if (member.role !== 'clubMember') return res.status(400).json({ message: "User is not a club member" });
+
+    // Demote by changing role to student
+    member.role = 'student';
+    member.position = undefined; // remove club-specific fields
+    await member.save();
+
+    res.status(200).json({ message: "Member demoted successfully", user: member });
+  } catch (err) {
+    console.error("Error in demoting member:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 }
 
@@ -719,6 +790,7 @@ module.exports = {
   getAllClubMembers,
   addClubMember,
   promoteToClubMember,
+  demoteClubMember,
   deleteClubMember,
   deleteStudent,
   getProfile,

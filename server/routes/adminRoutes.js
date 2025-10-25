@@ -10,6 +10,7 @@ const {
   getAllClubMembers,
   addClubMember,
   promoteToClubMember,
+  demoteClubMember,
   deleteClubMember,
   deleteStudent,
   getProfile,
@@ -52,6 +53,7 @@ router.post('/members', addClubMember);
 
 // Promote student to club member
 router.put('/students/:id/promote', promoteToClubMember);
+router.put('/club/:id/demote', demoteClubMember);
 
 // Delete a club member
 router.delete('/members/:id', deleteClubMember);
