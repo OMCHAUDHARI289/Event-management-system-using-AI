@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import './index.css';
 import App from './App.jsx';
-import { ToastProvider } from './pages/common/Toast.jsx'; // fixed path
+import { ToastProvider } from './pages/common/Toast'; // fixed path
 
 const container = document.getElementById('root');
 const root = createRoot(container);

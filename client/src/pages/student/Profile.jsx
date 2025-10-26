@@ -21,7 +21,8 @@ function StudentProfile() {
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshInterval, setRefreshInterval] = useState(null);
-  const addToast = useToast();
+  const { addToast} = useToast();
+
   const fileInputRef = useRef(null);
   const bannerInputRef = useRef(null);
 
@@ -287,7 +288,8 @@ function StudentProfile() {
       }));
       setIsEditing(false);
       addToast("Profile updated successfully!", { type: "success" });
-      
+
+
     } catch (err) {
       console.error("Failed to update profile:", err);
       addToast("Failed to update profile.", { type: "error" });
