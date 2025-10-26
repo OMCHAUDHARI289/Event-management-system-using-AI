@@ -6,6 +6,7 @@ import {
 import { getMyProfile, updateProfile, uploadAvatar, uploadBanner, getLeaderboard } from "../../services/studentService";
 import { generateMLPredictions } from "../../utils/mlPredictions";
 import { achievementDefinitions, getAchievementStatus, getRarityColor } from "../../utils/achievementUtils";
+import {useToast } from "../../pages/common/Toast";
 
 function StudentProfile() {
   const [isEditing, setIsEditing] = useState(false);
@@ -20,6 +21,7 @@ function StudentProfile() {
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshInterval, setRefreshInterval] = useState(null);
+  const addToast = useToast();
   const fileInputRef = useRef(null);
   const bannerInputRef = useRef(null);
 
@@ -165,6 +167,7 @@ function StudentProfile() {
           
         } catch (err) {
           console.error("ML prediction failed:", err);
+          addToast("Failed to generate AI predictions.", { type: "error" });
           // Fallback to default data
           setInterests(["Technology", "Coding", "AI/ML", "Web Development", "Hackathons", "Innovation"]);
           setRecentActivity([
@@ -179,6 +182,7 @@ function StudentProfile() {
 
     } catch (err) {
       console.error("Failed to load profile:", err);
+      addToast("Failed to load profile data.", { type: "error" });
     } finally {
       if (mounted) setLoading(false);
     }
@@ -244,6 +248,7 @@ function StudentProfile() {
       setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to refresh data:", err);
+      addToast("Failed to refresh data.", { type: "error" });
     } finally {
       setLoading(false);
     }
@@ -253,7 +258,7 @@ function StudentProfile() {
     setSaving(true);
     try {
       if (!profile.name || !profile.email) {
-        alert("Name and Email are required.");
+        addToast("Name and Email are required.", { type: "error" });
         setSaving(false);
         return;
       }
@@ -281,10 +286,11 @@ function StudentProfile() {
         bio: u.bio ?? prev.bio
       }));
       setIsEditing(false);
-      alert("Profile updated successfully!");
+      addToast("Profile updated successfully!", { type: "success" });
+      
     } catch (err) {
       console.error("Failed to update profile:", err);
-      alert("Failed to update profile.");
+      addToast("Failed to update profile.", { type: "error" });
     } finally {
       setSaving(false);
     }
@@ -302,10 +308,10 @@ function StudentProfile() {
       const res = await uploadAvatar(file);
       const avatarUrl = res?.avatarUrl ?? res?.user?.profileImage ?? null;
       if (avatarUrl) setProfile(prev => ({ ...prev, avatar: avatarUrl + "?t=" + Date.now() }));
-      alert("Avatar uploaded successfully!");
+      addToast("Avatar uploaded successfully!", { type: "success" });
     } catch (err) {
       console.error("Avatar upload failed:", err);
-      alert("Avatar upload failed.");
+      addToast("Avatar upload failed.", { type: "error" });
     } finally {
       setAvatarUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -324,10 +330,10 @@ function StudentProfile() {
       const res = await uploadBanner(file);
       const bannerUrl = res?.bannerUrl ?? res?.user?.bannerImage ?? null;
       if (bannerUrl) setProfile(prev => ({ ...prev, banner: bannerUrl + "?t=" + Date.now() }));
-      alert("Banner uploaded successfully!");
+      addToast("Banner uploaded successfully!", { type: "success" });
     } catch (err) {
       console.error("Banner upload failed:", err);
-      alert("Banner upload failed.");
+      addToast("Banner upload failed.", { type: "error" });
     } finally {
       setBannerUploading(false);
       if (bannerInputRef.current) bannerInputRef.current.value = "";

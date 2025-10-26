@@ -18,11 +18,11 @@ const StudentLayout = () => {
       </div>
 
       <style>{`
-        @keyframes float {0%,100%{transform:translateY(0) translateX(0);}50%{transform:translateY(-20px) translateX(10px);}}
-        @keyframes float-delayed {0%,100%{transform:translateY(0) translateX(0);}50%{transform:translateY(20px) translateX(-10px);}}
-        @keyframes pulse-slow {0%,100%{opacity:0.3;transform:scale(1);}50%{opacity:0.5;transform:scale(1.1);}}
-        @keyframes slideIn {from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:translateX(0);}}
-        @keyframes slideDown {from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}
+        @keyframes float {0%,100%{transform:translateY(0) translateX(0);}50%{transform:translateY(-20px) translateX(10px);} }
+        @keyframes float-delayed {0%,100%{transform:translateY(0) translateX(0);}50%{transform:translateY(20px) translateX(-10px);} }
+        @keyframes pulse-slow {0%,100%{opacity:0.3;transform:scale(1);}50%{opacity:0.5;transform:scale(1.1);} }
+        @keyframes slideIn {from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:translateX(0);} }
+        @keyframes slideDown {from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);} }
         .animate-float{animation:float 6s ease-in-out infinite;}
         .animate-float-delayed{animation:float-delayed 8s ease-in-out infinite;}
         .animate-pulse-slow{animation:pulse-slow 4s ease-in-out infinite;}
@@ -41,11 +41,11 @@ const StudentLayout = () => {
         </div>
 
         {/* Main Content */}
-        <div className={`ml-0 ${isSidebarOpen ? 'lg:ml-80' : 'lg:ml-0'} flex flex-col transition-all duration-300 pt-16`}>
-          <div className="relative z-30 bg-slate-900/50 backdrop-blur-xl border border-white/5 w-full transition-all duration-300 min-h-[calc(100vh-4rem)]">
-            <Outlet />
-          </div>
-        </div>
+        <div className={`absolute inset-0 pt-16 transition-all duration-300 ${isSidebarOpen ? 'lg:pl-80' : ''} overflow-auto`}>
+                <div className="relative z-30 bg-slate-900/50 backdrop-blur-xl border border-white/5 w-full min-h-screen">
+                  <Outlet />
+                </div>
+              </div>
       </div>
     </div>
   );

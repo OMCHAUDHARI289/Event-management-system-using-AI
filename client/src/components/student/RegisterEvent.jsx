@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Calendar, Clock, MapPin, Users, Tag, DollarSign, CheckCircle, X, CreditCard, Ticket, AlertCircle, Loader } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Tag, DollarSign, CheckCircle, X, CreditCard, Ticket, AlertCircle, Loader, Award, TrendingUp } from "lucide-react";
 import { registerForEvent, getEventById, getMyProfile } from "../../services/studentService";
+import { useToast } from "../../pages/common/Toast";
 
 function EventRegistration({ event, onClose }) {
   const [registrationStep, setRegistrationStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-
+  const { addToast } = useToast();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -16,10 +17,6 @@ function EventRegistration({ event, onClose }) {
     agreeTerms: false,
   });
 
-  // payment removed: simplified registration flow
-
-  // If no event prop is passed, allow this component to operate as a page
-  // that reads :id from the URL and fetches the event itself.
   const { id: routeId } = useParams();
   const navigate = useNavigate();
   const [eventData, setEventData] = useState(null);
@@ -31,7 +28,6 @@ function EventRegistration({ event, onClose }) {
         setLoadingEvent(true);
         try {
           const e = await getEventById(routeId);
-          // normalize shape similar to previous mapping
           setEventData({
             id: e._id,
             title: e.title,
@@ -43,9 +39,11 @@ function EventRegistration({ event, onClose }) {
             capacity: e.capacity,
             registered: e.registrations,
             price: e.price || 0,
+            image: e.image || 'https://via.placeholder.com/400x400?text=Event+Image',
           });
         } catch (err) {
           console.error("Error loading event:", err);
+          addToast('Error loading event details. Please try again later.', { type: 'error' });
         } finally {
           setLoadingEvent(false);
         }
@@ -55,10 +53,14 @@ function EventRegistration({ event, onClose }) {
   }, [routeId, event]);
 
   const currentEvent = event || eventData;
+  
   if (!currentEvent && loadingEvent) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white">Loading event details...</div>
+        <div className="text-center">
+          <Loader className="w-12 h-12 text-purple-400 mx-auto mb-4 animate-spin" />
+          <p className="text-white">Loading event details...</p>
+        </div>
       </div>
     );
   }
@@ -66,45 +68,43 @@ function EventRegistration({ event, onClose }) {
   if (!currentEvent && !loadingEvent) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white">Event not found</div>
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <p className="text-white">Event not found</p>
+        </div>
       </div>
     );
   }
 
-  const isPaid = false; // payments removed, treat all events as free for registration
+  const isPaid = false;
   const totalAmount = 0;
 
   const handleNext = () => {
     if (registrationStep === 1) {
       if (!formData.fullName || !formData.email || !formData.phone || !formData.department) {
-        alert("Please fill all required fields");
+        addToast('Please fill all required fields', { type: 'error' });
         return;
       }
       if (!formData.agreeTerms) {
-        alert("Please agree to terms");
+        addToast('Please agree to terms', { type: 'error' });
         return;
       }
       completeRegistration();
     }
   };
 
-  // Payment flow removed — simple registration
-
   const completeRegistration = () => {
-    // Call backend to register the user for this event
     (async () => {
       setIsProcessing(true);
       try {
-        // try to get current user id from profile (requires auth token in localStorage)
         let userId = null;
         try {
           const profile = await getMyProfile();
           userId = profile?.id;
         } catch (err) {
-          // ignore profile fetch error; fallback to null
+          // ignore
         }
 
-        // send registration payload
         const payload = {
           userId,
           fullName: formData.fullName,
@@ -118,10 +118,11 @@ function EventRegistration({ event, onClose }) {
         const res = await registerForEvent(currentEvent.id || currentEvent._id, payload);
 
         setRegistrationStep(3);
+        addToast('Registration successful!', { type: 'success' });
         setIsProcessing(false);
       } catch (error) {
         console.error("Registration failed:", error);
-        alert(error?.response?.data?.message || "Registration failed. Please try again.");
+        addToast(error?.response?.data?.message || "Registration failed. Please try again.", { type: 'error' });
         setIsProcessing(false);
       }
     })();
@@ -129,104 +130,289 @@ function EventRegistration({ event, onClose }) {
 
   const handleClose = () => {
     if (typeof onClose === "function") return onClose();
-    // fallback when used as a page
     navigate("/student/allevents");
   };
 
   const isPage = !onClose && (routeId || event);
 
   const InnerCard = (
-    <div className="bg-slate-900 border border-white/20 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-      {/* Header */}
-      <div className="sticky top-0 bg-slate-900 border-b border-white/10 p-6 flex items-center justify-between z-10">
-        <div>
-          <h2 className="text-2xl font-bold text-white">
-            {registrationStep === 1 && "Event Registration"}
-            {registrationStep === 2 && "Payment Details"}
-            {registrationStep === 3 && "Registration Successful!"}
-          </h2>
-          <p className="text-white/60 text-sm">{currentEvent?.title}</p>
+    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl animate-scaleIn">
+      <style>{`
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.8; }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-scaleIn { animation: scaleIn 0.3s ease-out forwards; }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+        .animate-slideUp { animation: slideUp 0.4s ease-out forwards; }
+        .animate-pulse-slow { animation: pulse 2s ease-in-out infinite; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .delay-100 { animation-delay: 0.1s; opacity: 0; }
+        .delay-200 { animation-delay: 0.2s; opacity: 0; }
+        .delay-300 { animation-delay: 0.3s; opacity: 0; }
+        .delay-400 { animation-delay: 0.4s; opacity: 0; }
+      `}</style>
+
+      {/* Header with Event Banner */}
+      <div className="relative">
+        <div className="h-48 bg-gradient-to-br from-purple-500 to-pink-500 overflow-hidden">
+          <img 
+            src={currentEvent?.image || 'https://via.placeholder.com/800x300?text=Event'}
+            alt={currentEvent?.title}
+            className="w-full h-full object-cover opacity-50"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent"></div>
         </div>
-        <button onClick={handleClose} className="p-2 hover:bg-white/10 rounded-lg transition-all">
-          <X className="w-6 h-6 text-white" />
+        
+        {/* Close Button */}
+        <button 
+          onClick={handleClose} 
+          className="absolute top-4 right-4 p-2 bg-black/40 backdrop-blur-sm hover:bg-black/60 rounded-lg transition-all duration-300 group"
+        >
+          <X className="w-5 h-5 text-white group-hover:rotate-90 transition-transform duration-300" />
         </button>
+
+        {/* Event Title Overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-6">
+          <span className="inline-block bg-purple-500/30 backdrop-blur-sm text-purple-200 px-3 py-1 rounded-full text-xs font-semibold mb-2">
+            {currentEvent?.category}
+          </span>
+          <h2 className="text-2xl font-bold text-white mb-1">{currentEvent?.title}</h2>
+          <div className="flex items-center space-x-4 text-white/80 text-sm">
+            <div className="flex items-center space-x-1">
+              <Calendar className="w-4 h-4" />
+              <span>{new Date(currentEvent?.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Clock className="w-4 h-4" />
+              <span>{currentEvent?.time}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="p-6">
-        {/* Step 1: Registration */}
+      {/* Progress Steps */}
+      {registrationStep !== 3 && (
+        <div className="bg-white/5 border-b border-white/10 px-6 py-4">
+          <div className="flex items-center justify-between max-w-md mx-auto">
+            <div className="flex items-center space-x-2">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-300 ${
+                registrationStep >= 1 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : 'bg-white/10 text-white/40'
+              }`}>
+                1
+              </div>
+              <span className={`text-sm font-medium ${registrationStep >= 1 ? 'text-white' : 'text-white/40'}`}>
+                Details
+              </span>
+            </div>
+            
+            <div className={`flex-1 h-0.5 mx-4 ${registrationStep >= 2 ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-white/10'}`}></div>
+            
+            <div className="flex items-center space-x-2">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-300 ${
+                registrationStep >= 2 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : 'bg-white/10 text-white/40'
+              }`}>
+                <CheckCircle className="w-5 h-5" />
+              </div>
+              <span className={`text-sm font-medium ${registrationStep >= 2 ? 'text-white' : 'text-white/40'}`}>
+                Complete
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Content Area */}
+      <div className="p-6 overflow-y-auto max-h-[calc(90vh-16rem)]">
+        {/* Step 1: Registration Form */}
         {registrationStep === 1 && (
-          <div className="space-y-6">
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={formData.fullName}
-              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40"
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40"
-            />
-            <input
-              type="tel"
-              placeholder="Phone"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40"
-            />
-            <input
-              type="text"
-              placeholder="Department"
-              value={formData.department}
-              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40"
-            />
-            <select
-              value={formData.year}
-              onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white"
-            >
-              <option value="1">1st Year</option>
-              <option value="2">2nd Year</option>
-              <option value="3">3rd Year</option>
-              <option value="4">4th Year</option>
-            </select>
-            <label className="flex items-center space-x-2">
+          <div className="space-y-5 animate-slideUp">
+            <div className="bg-white/5 rounded-xl p-4 mb-6">
+              <h3 className="text-lg font-bold text-white mb-2">Registration Information</h3>
+              <p className="text-white/60 text-sm">Please fill in your details to register for this event</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="animate-slideUp delay-100">
+                <label className="block text-white/80 text-sm font-medium mb-2">Full Name *</label>
+                <input
+                  type="text"
+                  placeholder="Enter your full name"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                />
+              </div>
+
+              <div className="animate-slideUp delay-200">
+                <label className="block text-white/80 text-sm font-medium mb-2">Email Address *</label>
+                <input
+                  type="email"
+                  placeholder="your.email@college.edu"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                />
+              </div>
+
+              <div className="animate-slideUp delay-300">
+                <label className="block text-white/80 text-sm font-medium mb-2">Phone Number *</label>
+                <input
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="animate-slideUp delay-400">
+                  <label className="block text-white/80 text-sm font-medium mb-2">Department *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Computer Science"
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                  />
+                </div>
+
+                <div className="animate-slideUp delay-400">
+                  <label className="block text-white/80 text-sm font-medium mb-2">Year *</label>
+                  <select
+                    value={formData.year}
+                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                  >
+                    <option value="1" className="bg-slate-800">1st Year</option>
+                    <option value="2" className="bg-slate-800">2nd Year</option>
+                    <option value="3" className="bg-slate-800">3rd Year</option>
+                    <option value="4" className="bg-slate-800">4th Year</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Event Info Summary */}
+            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-4 mt-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="flex items-center space-x-2 text-white/80">
+                  <MapPin className="w-4 h-4 text-purple-400" />
+                  <span>{currentEvent?.venue}</span>
+                </div>
+                <div className="flex items-center space-x-2 text-white/80">
+                  <Users className="w-4 h-4 text-purple-400" />
+                  <span>{currentEvent?.registered}/{currentEvent?.capacity} Registered</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Terms and Conditions */}
+            <label className="flex items-start space-x-3 cursor-pointer group p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
               <input
                 type="checkbox"
                 checked={formData.agreeTerms}
                 onChange={(e) => setFormData({ ...formData, agreeTerms: e.target.checked })}
-                className="w-5 h-5"
+                className="w-5 h-5 mt-0.5 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-2 focus:ring-purple-400 transition-all"
               />
-              <span className="text-white/80 text-sm">I agree to terms and conditions</span>
+              <span className="text-white/80 text-sm">
+                I agree to the{' '}
+                <span className="text-purple-300 hover:text-purple-200 font-semibold underline cursor-pointer">
+                  Terms and Conditions
+                </span>
+                {' '}and{' '}
+                <span className="text-purple-300 hover:text-purple-200 font-semibold underline cursor-pointer">
+                  Privacy Policy
+                </span>
+              </span>
             </label>
+
+            {/* Submit Button */}
             <button
               onClick={handleNext}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl"
+              disabled={isProcessing}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {"Complete Registration"}
+              {isProcessing ? (
+                <>
+                  <Loader className="w-5 h-5 animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <span>Complete Registration</span>
+                  <CheckCircle className="w-5 h-5" />
+                </>
+              )}
             </button>
           </div>
         )}
 
-        {/* Step 2: Payment */}
-        {/* Payment step removed */}
-
         {/* Step 3: Success */}
         {registrationStep === 3 && (
-          <div className="text-center py-8">
-            <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-white mb-2">Registration Successful!</h3>
-            <p className="text-white/60">Your registration is confirmed.</p>
-            <button
-              onClick={handleClose}
-              className="mt-6 w-full bg-white/10 text-white py-3 rounded-xl"
-            >
-              Close
-            </button>
+          <div className="text-center py-12 animate-scaleIn">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full mb-6 animate-float">
+              <CheckCircle className="w-12 h-12 text-white" />
+            </div>
+            
+            <h3 className="text-3xl font-bold text-white mb-3">Registration Successful!</h3>
+            <p className="text-white/70 text-lg mb-2">You're all set for {currentEvent?.title}</p>
+            <p className="text-white/50 text-sm mb-8">A confirmation email has been sent to {formData.email}</p>
+
+            {/* Success Details */}
+            <div className="bg-white/5 rounded-xl p-6 mb-6 text-left max-w-md mx-auto">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60 text-sm">Event Date</span>
+                  <span className="text-white font-semibold">{new Date(currentEvent?.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60 text-sm">Time</span>
+                  <span className="text-white font-semibold">{currentEvent?.time}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60 text-sm">Venue</span>
+                  <span className="text-white font-semibold">{currentEvent?.venue}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <button
+                onClick={() => navigate('/student/myevents')}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+              >
+                <Ticket className="w-5 h-5" />
+                <span>View My Events</span>
+              </button>
+              <button
+                onClick={handleClose}
+                className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-3 rounded-xl transition-all"
+              >
+                Close
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -234,17 +420,25 @@ function EventRegistration({ event, onClose }) {
   );
 
   if (isPage) {
-    // Render inline page card (centered within page content)
     return (
-      <div className="py-8">
-        <div className="max-w-4xl mx-auto px-4">{InnerCard}</div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 right-10 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-pulse-slow"></div>
+          <div className="absolute bottom-20 left-10 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-float"></div>
+        </div>
+
+        <div className="relative z-10 py-8">
+          <div className="max-w-4xl mx-auto px-4">{InnerCard}</div>
+        </div>
       </div>
     );
   }
 
-  // Default: modal overlay
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">{InnerCard}</div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      {InnerCard}
+    </div>
   );
 }
 

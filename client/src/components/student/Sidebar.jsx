@@ -1,19 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, Calendar, BarChart3, UserCircle, Menu, X, ChevronRight, Bell, Search } from 'lucide-react';
+import { getMyProfile } from '../../services/studentService'; // your API call
+import { useToast } from '../../pages/common/Toast';
 
 export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsOpenProp }) {
-  // active state should reflect student routes (e.g. /student/dashboard)
   const [activeItem, setActiveItem] = useState('dashboard');
   const navigate = useNavigate();
   const location = useLocation();
+  const { addToast } = useToast();
+
+  const [user, setUser] = useState(null); // store user details
 
   useEffect(() => {
-    // detect the first segment after /student/
+    // set active item based on current route
     const path = location.pathname.replace('/student/', '') || 'dashboard';
     const first = path.split('/')[0];
     setActiveItem(first);
   }, [location.pathname]);
+
+  // fetch user profile on mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const profile = await getMyProfile();
+        setUser(profile);
+      } catch (err) {
+        console.error('Error fetching profile', err);
+        addToast('Failed to load user profile', { type: 'error' });
+      }
+    };
+    fetchUser();
+  }, []);
 
   const [localOpen, setLocalOpen] = useState(false);
   const isControlled = typeof isOpenProp !== 'undefined' && typeof setIsOpenProp === 'function';
@@ -21,7 +39,6 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
   const setIsOpen = isControlled ? setIsOpenProp : setLocalOpen;
   const [hoveredItem, setHoveredItem] = useState(null);
 
-  // student-specific menu items (map to files in src/pages/student)
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'from-blue-500 to-cyan-500' },
     { id: 'allevents', label: 'All Events', icon: Calendar, color: 'from-orange-500 to-red-500' },
@@ -73,7 +90,6 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
                   key={item.id}
                   onClick={() => {
                     setActiveItem(item.id);
-                    // navigate to the student route for this item
                     navigate(`/student/${item.id}`);
                   }}
                   onMouseEnter={() => setHoveredItem(item.id)}
@@ -93,21 +109,16 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
                       : 'bg-transparent hover:bg-transparent'
                     }
                   `}>
-                    {/* Animated Background Gradient */}
                     <div className={`
                       absolute inset-0 bg-gradient-to-r ${item.color} opacity-0 
                       transition-opacity duration-300 rounded-xl
                       ${isHovered && !isActive ? 'opacity-20' : ''}
                     `}></div>
 
-                    {/* Icon Container with 3D Effect */}
                     <div className={`
                       relative z-10 flex items-center justify-center
                       w-10 h-10 rounded-lg transition-all duration-300
-                      ${isActive 
-                        ? 'bg-white/20 shadow-lg' 
-                        : 'bg-transparent group-hover:bg-transparent'
-                      }
+                      ${isActive ? 'bg-white/20 shadow-lg' : 'bg-transparent group-hover:bg-transparent'}
                       ${isHovered || isActive ? 'scale-110 rotate-3' : ''}
                     `}>
                       <Icon className={`
@@ -116,7 +127,6 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
                       `} />
                     </div>
 
-                    {/* Label */}
                     <span className={`
                       relative z-10 font-medium transition-all duration-300
                       ${isActive ? 'text-white' : 'text-white/70 group-hover:text-white'}
@@ -124,7 +134,6 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
                       {item.label}
                     </span>
 
-                    {/* Arrow Indicator */}
                     <ChevronRight className={`
                       relative z-10 w-5 h-5 ml-auto transition-all duration-300
                       ${isActive 
@@ -133,7 +142,6 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
                       }
                     `} />
 
-                    {/* Shine Effect */}
                     <div className={`
                       absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500
                       bg-gradient-to-r from-transparent via-white/10 to-transparent
@@ -154,11 +162,13 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                     <UserCircle className="w-7 h-7 text-white" />
                   </div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-slate-900"></div>
+                  {user?.isOnline && (
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-slate-900"></div>
+                  )}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-white">John Doe</h3>
-                  <p className="text-xs text-white/60">john@college.edu</p>
+                  <h3 className="text-sm font-semibold text-white">{user?.name || 'Loading...'}</h3>
+                  <p className="text-xs text-white/60">{user?.email || '...'}</p>
                 </div>
                 <Bell className="w-5 h-5 text-white/60 group-hover:text-white transition-colors" />
               </div>
@@ -167,7 +177,6 @@ export default function DashboardSidebar({ isOpen: isOpenProp, setIsOpen: setIsO
         </div>
       </div>
 
-      {/* Mobile Overlay */}
       {isOpen && (
         <div
           onClick={() => setIsOpen(false)}

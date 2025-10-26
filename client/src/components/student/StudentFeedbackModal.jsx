@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Star, MessageSquare, Send, AlertCircle } from 'lucide-react';
 import { submitEventFeedback } from '../../services/studentService';
+import {useToast} from '../../pages/common/Toast';
 
 export default function StudentFeedbackModal({
   isOpen,
@@ -14,6 +15,7 @@ export default function StudentFeedbackModal({
   const [comments, setComments] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const addToast = useToast();
 
   const handleSubmit = async () => {
     if (rating < 1 || rating > 5) {
@@ -31,6 +33,7 @@ export default function StudentFeedbackModal({
       if (onFeedbackSubmitted) {
         // allow parent to refresh from server
         await onFeedbackSubmitted(feedback);
+        addToast('Feedback submitted successfully!', { type: 'success' });
       }
 
       setRating(0);
@@ -38,7 +41,9 @@ export default function StudentFeedbackModal({
       onClose();
     } catch (err) {
       console.error('Feedback submit error', err);
+      addToast('Error submitting feedback. Please try again later.', { type: 'error' });
       setError(err.response?.data?.message || err.message || 'Error submitting feedback');
+      addToast('Error submitting feedback. Please try again later.', { type: 'error' });
     } finally {
       setLoading(false);
     }

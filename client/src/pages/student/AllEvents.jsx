@@ -1,36 +1,45 @@
-import { useEffect, useMemo, useState } from "react";
-import { Calendar, Clock, MapPin, Users, Search, Filter, Star, Ticket, Heart, Share2, TrendingUp, Award, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Calendar, Clock, MapPin, Users, Search, Filter, Star, Ticket, TrendingUp, Award, Zap } from "lucide-react";
 import { getStudentEvents } from "../../services/studentService";
 import { useNavigate } from "react-router-dom";
+import{ useToast } from"../../pages/common/Toast";
 
 function StudentAllEvents() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
   const [viewMode, setViewMode] = useState("grid");
-
+  const { toast } = useToast();
   const [events, setEvents] = useState([]);
   useEffect(() => {
     const load = async () => {
       try {
         const list = await getStudentEvents();
-        setEvents(list.map(e => ({
-          id: e._id,
-          title: e.title,
-          description: e.description || "",
-          date: e.date,
-          time: e.time,
-          venue: e.venue,
-          category: e.category,
-          image: e.image || "🎉",
-          capacity: e.capacity,
-          registered: e.registrations,
-          price: e.price || 0,
-          rating: 4.7,
-          trending: false,
-          featured: false,
-          tags: []
-        })));
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
+        
+        setEvents(list
+          .filter(e => {
+            const eventDate = new Date(e.date);
+            eventDate.setHours(0, 0, 0, 0);
+            return eventDate >= today; // Only future and current date events
+          })
+          .map(e => ({
+            id: e._id,
+            title: e.title,
+            description: e.description || "",
+            date: e.date,
+            time: e.time,
+            venue: e.venue,
+            category: e.category,
+            image: e.image || "🎉",
+            capacity: e.capacity,
+            registered: e.registrations,
+            price: e.price || 0,
+            trending: false,
+            featured: false,
+            tags: []
+          })));
       } catch (e) {
         // ignore
       }
@@ -55,7 +64,6 @@ function StudentAllEvents() {
     .sort((a, b) => {
       if (sortBy === "date") return new Date(a.date) - new Date(b.date);
       if (sortBy === "popular") return b.registered - a.registered;
-      if (sortBy === "rating") return b.rating - a.rating;
       return 0;
     });
 
@@ -65,10 +73,11 @@ function StudentAllEvents() {
     if (percentage >= 70) return "text-orange-400";
     return "text-green-400";
   };
-const navigate = useNavigate();
 
-   const handleRegisterClick = (id) => {
-    navigate(`/student/register/${id}`); // ✅ open register page
+  const navigate = useNavigate();
+
+  const handleRegisterClick = (id) => {
+    navigate(`/student/register/${id}`);
   };
 
   return (
@@ -143,7 +152,6 @@ const navigate = useNavigate();
             >
               <option value="date" className="bg-slate-800">Sort by Date</option>
               <option value="popular" className="bg-slate-800">Most Popular</option>
-              <option value="rating" className="bg-slate-800">Highest Rated</option>
             </select>
           </div>
         </div>
@@ -172,7 +180,7 @@ const navigate = useNavigate();
         </div>
 
         {/* Featured Events Banner */}
-        {categoryFilter === "all" && (
+        {categoryFilter === "all" && events.filter(e => e.featured).length > 0 && (
           <div className="mb-8 animate-scaleIn">
             <h2 className="text-2xl font-bold text-white mb-4 flex items-center space-x-2">
               <Star className="w-6 h-6 text-yellow-400" />
@@ -205,7 +213,7 @@ const navigate = useNavigate();
                     <p className="text-white/70 text-sm mb-4">{event.description}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-bold text-green-400">{event.price}</span>
-                      <button  onClick={() => handleRegisterClick(event.id)} className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-xl transition-all transform hover:scale-105">
+                      <button onClick={() => handleRegisterClick(event.id)} className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-xl transition-all transform hover:scale-105">
                         Register Now
                       </button>
                     </div>
@@ -232,45 +240,24 @@ const navigate = useNavigate();
               style={{ animationDelay: `${idx * 50}ms`, opacity: 0 }}
             >
               {/* Event Header */}
-              <div className="relative bg-gradient-to-br from-purple-500 to-pink-500 h-40 flex items-center justify-center text-6xl">
-                <div className="relative h-40 w-full overflow-hidden rounded-t-2xl">
-  <img
-    src={event.image || "https://via.placeholder.com/400x200?text=No+Image"}
-    alt={event.title}
-    className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-  />
-  {event.trending && (
-    <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-lg text-xs font-bold flex items-center space-x-1">
-      <TrendingUp className="w-3 h-3" />
-      <span>Trending</span>
-    </div>
-  )}
-</div>
-
+              <div className="relative h-40 w-full overflow-hidden rounded-t-2xl">
+                <img
+                  src={event.image || "https://via.placeholder.com/400x200?text=No+Image"}
+                  alt={event.title}
+                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                />
                 {event.trending && (
                   <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-lg text-xs font-bold flex items-center space-x-1">
                     <TrendingUp className="w-3 h-3" />
                     <span>Trending</span>
                   </div>
                 )}
-                <div className="absolute top-3 right-3 flex space-x-2">
-                  <button className="bg-white/20 backdrop-blur-sm p-2 rounded-lg hover:bg-white/30 transition-all">
-                    <Heart className="w-4 h-4 text-white" />
-                  </button>
-                  <button className="bg-white/20 backdrop-blur-sm p-2 rounded-lg hover:bg-white/30 transition-all">
-                    <Share2 className="w-4 h-4 text-white" />
-                  </button>
-                </div>
               </div>
 
               {/* Event Body */}
               <div className="p-6">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-lg font-bold text-white">{event.title}</h3>
-                  <div className="flex items-center space-x-1 bg-yellow-500/20 px-2 py-1 rounded-lg">
-                    <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                    <span className="text-yellow-400 text-xs font-semibold">{event.rating}</span>
-                  </div>
                 </div>
 
                 <span className="inline-block text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full mb-3">
@@ -295,13 +282,15 @@ const navigate = useNavigate();
                 </div>
 
                 {/* Tags */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {event.tags.map((tag, i) => (
-                    <span key={i} className="text-xs bg-white/5 text-white/60 px-2 py-1 rounded">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+                {event.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {event.tags.map((tag, i) => (
+                      <span key={i} className="text-xs bg-white/5 text-white/60 px-2 py-1 rounded">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Availability */}
                 <div className="mb-4">

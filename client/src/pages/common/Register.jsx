@@ -3,9 +3,11 @@ import { Mail, Lock, User, Phone, Calendar, ArrowRight, GraduationCap, BookOpen,
 import icemBg from '../../assets/ICEM.jpg';
 import { registerUser } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../common/Toast';
 
 export default function CollegeEventRegister() {
   const navigate = useNavigate();
+  const { addToast } = useToast();
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -32,37 +34,41 @@ export default function CollegeEventRegister() {
     const confirmPassword = formData.confirmPassword;
 
     if (!name || !email || !password) {
-      alert('All fields are required');
+      addToast('All fields are required');
       return;
     }
 
     if (password !== confirmPassword) {
-      alert('Passwords do not match!');
+      addToast('Passwords do not match!');
       return;
     }
 
     if (!formData.agreeTerms) {
-      alert('You must agree to Terms and Conditions');
+      addToast('You must agree to Terms and Conditions');
       return;
     }
 
     try {
-      const result = await registerUser({
-        name,
-        email,
-        password
-      });
+      const result = await registerUser({ name, email, password });
+
       console.log('User registered successfully:', result);
-      alert('Registration successful!');
-      navigate('/auth/login');
+      addToast('User registered successfully!');
+      // ✅ Save token & user info to localStorage for auto-login
+      localStorage.setItem('studentToken', result.token);
+      localStorage.setItem('studentUser', JSON.stringify(result.user));
+
+      addToast('Registration successful! Login ');
+
+      // ✅ Redirect to dashboard
+      navigate('/student/dashboard');
+
     } catch (error) {
       const message = error?.response?.data?.message || error?.message || 'Registration failed';
       console.error('Registration error:', message);
-      alert(message);
+      addToast(message);
     }
   };
 
- 
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col lg:flex-row">
@@ -251,24 +257,24 @@ export default function CollegeEventRegister() {
               </div>
 
               {/* Email Address - Full Width */}
-<div className="animate-fadeInUp delay-500">
-  <label className="block text-white/90 text-sm font-medium mb-2">
-    Email Address
-  </label>
-  <div className="relative group">
-    <div className="absolute inset-y-0 left-0 pl-3 lg:pl-4 flex items-center pointer-events-none">
-      <Mail className="w-4 h-4 lg:w-5 lg:h-5 text-white/50 group-focus-within:text-purple-300 transition-colors" />
-    </div>
-    <input
-      type="email"
-      name="email"
-      value={formData.email}
-      onChange={handleChange}
-      className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 pl-10 lg:pl-12 pr-4 text-white text-sm lg:text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
-      placeholder="john@college.edu"
-    />
-  </div>
-</div>
+              <div className="animate-fadeInUp delay-500">
+                <label className="block text-white/90 text-sm font-medium mb-2">
+                  Email Address
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 lg:pl-4 flex items-center pointer-events-none">
+                    <Mail className="w-4 h-4 lg:w-5 lg:h-5 text-white/50 group-focus-within:text-purple-300 transition-colors" />
+                  </div>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 pl-10 lg:pl-12 pr-4 text-white text-sm lg:text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
+                    placeholder="john@college.edu"
+                  />
+                </div>
+              </div>
 
               {/* Password Fields - Side by Side on larger screens */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5">
@@ -321,15 +327,15 @@ export default function CollegeEventRegister() {
                     onChange={handleChange}
                     className="w-4 h-4 lg:w-5 lg:h-5 mt-0.5 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-2 focus:ring-purple-400 transition-all flex-shrink-0"
                   />
-                  <span className="ml-2 lg:ml-3 text-xs sm:text-sm text-white/80 group-hover:text-white transition-colors">
+                  <span className="ml-2 text-white/90 text-xs sm:text-sm">
                     I agree to the{' '}
-                    <button className="text-purple-300 hover:text-purple-200 font-semibold underline">
+                    <span className="text-purple-300 hover:text-purple-200 font-semibold underline cursor-pointer">
                       Terms and Conditions
-                    </button>
+                    </span>
                     {' '}and{' '}
-                    <button className="text-purple-300 hover:text-purple-200 font-semibold underline">
+                    <span className="text-purple-300 hover:text-purple-200 font-semibold underline cursor-pointer">
                       Privacy Policy
-                    </button>
+                    </span>
                   </span>
                 </label>
               </div>
@@ -348,9 +354,12 @@ export default function CollegeEventRegister() {
             <div className="text-center mt-6 lg:mt-8 animate-fadeInUp delay-700">
               <p className="text-white/70 text-xs sm:text-sm">
                 Already have an account?{' '}
-                <button type="button" onClick={() => navigate('/auth/login')} className="text-white font-semibold hover:underline transition-all duration-300">
+                <span 
+                  onClick={() => navigate('/auth/login')} 
+                  className="text-white font-semibold hover:underline transition-all duration-300 cursor-pointer"
+                >
                   Sign In
-                </button>
+                </span>
               </p>
             </div>
           </div>

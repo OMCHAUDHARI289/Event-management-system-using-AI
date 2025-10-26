@@ -18,27 +18,39 @@ exports.register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const newUser = new User({ name, email, password: hashedPassword });
     await newUser.save();
 
-    // Send welcome email (HTML)
-    const loginUrl = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/auth/login` : 'http://localhost:5173/auth/login';
+    // Generate JWT token immediately after registration
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+    // Optional welcome email
+    const dashboardUrl = process.env.FRONTEND_URL
+      ? `${process.env.FRONTEND_URL}/student/dashboard`
+      : 'http://localhost:5173/student/dashboard';
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin:auto; padding:20px; background:#f9f9f9; border-radius:10px; text-align:center;">
         <h2 style="color:#4B0082;">Welcome, ${name}!</h2>
-        <p style="color:#333; font-size:16px;">Your student account has been successfully created at ICEM.</p>
-        <p style="color:#333; font-size:16px;">Login now to explore events and activities.</p>
-        <a href="${loginUrl}" 
+        <p>Your student account has been successfully created.</p>
+        <a href="${dashboardUrl}" 
            style="display:inline-block; margin-top:20px; background: linear-gradient(90deg,#4B0082,#8A2BE2); color:white; padding:12px 25px; border-radius:8px; text-decoration:none; font-weight:bold;">
-          Go to Login
+          Go to Dashboard
         </a>
-        <p style="color:#666; font-size:12px; margin-top:20px;">If you have questions, contact <a href="mailto:support@icem.edu">support@icem.edu</a></p>
       </div>
     `;
     await sendEmail(email, 'Welcome to ICEM Events!', htmlContent, true);
 
-    res.status(201).json({ message: 'User registered successfully', user: newUser });
+    // 🔥 Send token + user to frontend
+    res.status(201).json({
+      message: 'User registered successfully',
+      token,
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

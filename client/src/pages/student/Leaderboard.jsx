@@ -3,67 +3,64 @@ import { Trophy, Medal, Award, TrendingUp, Users, Calendar, Star, Crown, Zap, Ta
 import { getLeaderboard } from "../../services/studentService";
 
 function StudentLeaderboard() {
-  const [filterPeriod, setFilterPeriod] = useState("all");
-  const [filterCategory, setFilterCategory] = useState("overall");
   const [currentUser, setCurrentUser] = useState(null);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  const load = async () => {
-    setLoading(true);
-    try {
-      const resp = await getLeaderboard(); // fetches normalized data
-      setLeaderboardData(resp.leaderboard || []);
-      setCurrentUser(resp.currentUser || null);
-    } catch (err) {
-      console.error('Failed to load leaderboard', err);
-      setLeaderboardData([]);
-      setCurrentUser(null);
-    } finally {
-      setLoading(false);
-    }
+    const load = async () => {
+      setLoading(true);
+      try {
+        const resp = await getLeaderboard();
+        // Map leaderboard data and ensure image/avatar is included
+        const mappedLeaderboard = (resp.leaderboard || []).map(user => ({
+          ...user,
+          avatar: user.image || user.avatar || user.profileImage || '👤'
+        }));
+        
+        setLeaderboardData(mappedLeaderboard);
+        
+        // Also ensure current user has avatar
+        if (resp.currentUser) {
+          setCurrentUser({
+            ...resp.currentUser,
+            avatar: resp.currentUser.image || resp.currentUser.avatar || resp.currentUser.profileImage || '👤'
+          });
+        } else {
+          setCurrentUser(null);
+        }
+      } catch (err) {
+        console.error('Failed to load leaderboard', err);
+        setLeaderboardData([]);
+        setCurrentUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const stats = currentUser
+    ? [
+        { label: "Your Rank", value: `#${currentUser.rank}`, icon: Trophy, color: "from-yellow-500 to-orange-500" },
+        { label: "Total Points", value: currentUser.points, icon: Star, color: "from-purple-500 to-pink-500" },
+        { label: "Events Attended", value: currentUser.eventsAttended || 0, icon: Calendar, color: "from-blue-500 to-cyan-500" },
+        { label: "Current Streak", value: currentUser.streak || "0 days", icon: Zap, color: "from-green-500 to-emerald-500" }
+      ]
+    : [];
+
+  const getLevelColor = (rank) => {
+    if (rank === 1) return "from-slate-300 to-slate-500"; // Platinum
+    if (rank === 2) return "from-yellow-400 to-yellow-600"; // Gold
+    if (rank === 3) return "from-gray-300 to-gray-500"; // Silver
+    return "from-purple-500 to-pink-500"; // Default
   };
-  load();
-}, []);
 
-
-  useEffect(() => {
-  const load = async () => {
-    setLoading(true);
-    try {
-      const resp = await getLeaderboard();
-      setLeaderboardData(resp.leaderboard || []);
-      setCurrentUser(resp.currentUser || null);
-    } catch (err) {
-      console.error('Failed to load leaderboard', err);
-      setLeaderboardData([]);
-      setCurrentUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-  load();
-}, []);
-
- const stats = currentUser
-  ? [
-      { label: "Your Rank", value: `#${currentUser.rank}`, icon: Trophy, color: "from-yellow-500 to-orange-500" },
-      { label: "Total Points", value: currentUser.points, icon: Star, color: "from-purple-500 to-pink-500" },
-      { label: "Events Attended", value: currentUser.eventsAttended || 0, icon: Calendar, color: "from-blue-500 to-cyan-500" },
-      { label: "Current Streak", value: currentUser.streak || "0 days", icon: Zap, color: "from-green-500 to-emerald-500" }
-    ]
-  : [];
-
-
-  const getLevelColor = (level) => {
-    switch(level) {
-      case "Platinum": return "from-slate-400 to-slate-600";
-      case "Gold": return "from-yellow-400 to-yellow-600";
-      case "Silver": return "from-gray-300 to-gray-500";
-      case "Bronze": return "from-orange-400 to-orange-600";
-      default: return "from-purple-500 to-pink-500";
-    }
+  const getLevelName = (rank) => {
+    if (rank === 1) return "Platinum";
+    if (rank === 2) return "Gold";
+    if (rank === 3) return "Silver";
+    return "Bronze";
   };
 
   const getTrendIcon = (trend) => {
@@ -82,6 +79,19 @@ function StudentLeaderboard() {
       default: return <span className="text-2xl font-bold text-white/60">#{rank}</span>;
     }
   };
+
+  // Get top 10 users
+  const top10 = leaderboardData.slice(0, 10);
+  
+  // Check if current user is in top 10
+  const isCurrentUserInTop10 = currentUser && top10.some(u => u.isCurrentUser);
+  
+  // Display list: top 10, or top 9 + current user if not in top 10
+  let displayList = [...top10];
+  if (currentUser && !isCurrentUserInTop10 && currentUser.rank > 10) {
+    // Replace 10th position with current user but show their actual rank
+    displayList = [...top10.slice(0, 9), { ...currentUser, isCurrentUser: true }];
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
@@ -143,84 +153,87 @@ function StudentLeaderboard() {
             </div>
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold text-white">Leaderboard</h1>
-              <p className="text-white/60">Compete with fellow students and climb the ranks</p>
+              <p className="text-white/60">Top 10 students competing for the crown</p>
             </div>
           </div>
         </div>
 
         {/* Your Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {stats.map((stat, idx) => {
-            const Icon = stat.icon;
-            return (
-              <div
-                key={idx}
-                className={`
-                  bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6
-                  hover:bg-white/10 transition-all duration-300 cursor-pointer
-                  hover:shadow-2xl hover:shadow-purple-500/20
-                  transform hover:scale-105 animate-scaleIn delay-${idx * 100}
-                `}
-              >
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center shadow-lg mb-3`}>
-                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+        {stats.length > 0 && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {stats.map((stat, idx) => {
+              const Icon = stat.icon;
+              return (
+                <div
+                  key={idx}
+                  className={`
+                    bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6
+                    hover:bg-white/10 transition-all duration-300 cursor-pointer
+                    hover:shadow-2xl hover:shadow-purple-500/20
+                    transform hover:scale-105 animate-scaleIn delay-${idx * 100}
+                  `}
+                >
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center shadow-lg mb-3`}>
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  <p className="text-white/60 text-xs sm:text-sm mb-1">{stat.label}</p>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white">{stat.value}</h2>
                 </div>
-                <p className="text-white/60 text-xs sm:text-sm mb-1">{stat.label}</p>
-                <h2 className="text-2xl sm:text-3xl font-bold text-white">{stat.value}</h2>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8 animate-fadeIn">
-          <select
-            value={filterPeriod}
-            onChange={(e) => setFilterPeriod(e.target.value)}
-            className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="all" className="bg-slate-800">All Time</option>
-            <option value="month" className="bg-slate-800">This Month</option>
-            <option value="week" className="bg-slate-800">This Week</option>
-          </select>
-          
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="overall" className="bg-slate-800">Overall</option>
-            <option value="technical" className="bg-slate-800">Technical Events</option>
-            <option value="cultural" className="bg-slate-800">Cultural Events</option>
-            <option value="sports" className="bg-slate-800">Sports Events</option>
-          </select>
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Top 3 Podium */}
         <div className="mb-8 animate-scaleIn delay-200">
           <div className="grid grid-cols-3 gap-4 max-w-4xl mx-auto">
-            {/* 2nd Place */}
+            {/* 2nd Place - Gold */}
             <div className="flex flex-col items-center pt-12">
               <div className="relative mb-4">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-gray-300 to-gray-500 rounded-full flex items-center justify-center text-4xl sm:text-5xl border-4 border-gray-400 shadow-2xl">
-                  {leaderboardData[1]?.avatar || '👤'}
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-4xl sm:text-5xl border-4 border-yellow-500 shadow-2xl overflow-hidden">
+                  {typeof leaderboardData[1]?.avatar === 'string' && (leaderboardData[1]?.avatar.startsWith('http') || leaderboardData[1]?.avatar.startsWith('/')) ? (
+                    <img 
+                      src={leaderboardData[1]?.avatar} 
+                      alt={leaderboardData[1]?.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.parentElement.innerHTML = '👤';
+                      }}
+                    />
+                  ) : (
+                    <span>{leaderboardData[1]?.avatar || '👤'}</span>
+                  )}
                 </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-gray-300 to-gray-500 rounded-full flex items-center justify-center border-2 border-slate-900">
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center border-2 border-slate-900">
                   <span className="text-white font-bold text-sm">2</span>
                 </div>
               </div>
               <h3 className="text-white font-bold text-sm sm:text-base text-center mb-1">{leaderboardData[1]?.name || '--'}</h3>
               <p className="text-white/60 text-xs mb-2">{leaderboardData[1]?.points ?? 0} pts</p>
-              <div className="bg-gradient-to-br from-gray-300 to-gray-500 rounded-t-2xl p-4 sm:p-6 w-full text-center">
+              <div className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-t-2xl p-4 sm:p-6 w-full text-center">
+                <p className="text-white font-bold text-xs mb-2">GOLD</p>
                 <Medal className="w-8 h-8 sm:w-10 sm:h-10 text-white mx-auto" />
               </div>
             </div>
 
-            {/* 1st Place */}
+            {/* 1st Place - Platinum */}
             <div className="flex flex-col items-center">
               <div className="relative mb-4">
-                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-5xl sm:text-6xl border-4 border-yellow-500 shadow-2xl shadow-yellow-500/50 animate-shimmer">
-                  {leaderboardData[0]?.avatar || '👤'}
+                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-slate-300 to-slate-500 rounded-full flex items-center justify-center text-5xl sm:text-6xl border-4 border-slate-400 shadow-2xl shadow-slate-400/50 animate-shimmer overflow-hidden">
+                  {typeof leaderboardData[0]?.avatar === 'string' && (leaderboardData[0]?.avatar.startsWith('http') || leaderboardData[0]?.avatar.startsWith('/')) ? (
+                    <img 
+                      src={leaderboardData[0]?.avatar} 
+                      alt={leaderboardData[0]?.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.parentElement.innerHTML = '👤';
+                      }}
+                    />
+                  ) : (
+                    <span>{leaderboardData[0]?.avatar || '👤'}</span>
+                  )}
                 </div>
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                   <Crown className="w-10 h-10 sm:w-12 sm:h-12 text-yellow-400 fill-yellow-400 animate-float" />
@@ -228,38 +241,53 @@ function StudentLeaderboard() {
               </div>
               <h3 className="text-white font-bold text-base sm:text-lg text-center mb-1">{leaderboardData[0]?.name || '--'}</h3>
               <p className="text-white/60 text-sm mb-2">{leaderboardData[0]?.points ?? 0} pts</p>
-              <div className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-t-2xl p-6 sm:p-8 w-full text-center">
+              <div className="bg-gradient-to-br from-slate-300 to-slate-500 rounded-t-2xl p-6 sm:p-8 w-full text-center">
+                <p className="text-white font-bold text-sm mb-2">PLATINUM</p>
                 <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-white mx-auto" />
               </div>
             </div>
 
-            {/* 3rd Place */}
+            {/* 3rd Place - Silver */}
             <div className="flex flex-col items-center pt-16">
               <div className="relative mb-4">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-4xl sm:text-5xl border-4 border-orange-500 shadow-2xl">
-                  {leaderboardData[2]?.avatar || '👤'}
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-gray-300 to-gray-500 rounded-full flex items-center justify-center text-4xl sm:text-5xl border-4 border-gray-400 shadow-2xl overflow-hidden">
+                  {typeof leaderboardData[2]?.avatar === 'string' && (leaderboardData[2]?.avatar.startsWith('http') || leaderboardData[2]?.avatar.startsWith('/')) ? (
+                    <img 
+                      src={leaderboardData[2]?.avatar} 
+                      alt={leaderboardData[2]?.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.parentElement.innerHTML = '👤';
+                      }}
+                    />
+                  ) : (
+                    <span>{leaderboardData[2]?.avatar || '👤'}</span>
+                  )}
                 </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center border-2 border-slate-900">
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-gray-300 to-gray-500 rounded-full flex items-center justify-center border-2 border-slate-900">
                   <span className="text-white font-bold text-sm">3</span>
                 </div>
               </div>
               <h3 className="text-white font-bold text-sm sm:text-base text-center mb-1">{leaderboardData[2]?.name || '--'}</h3>
               <p className="text-white/60 text-xs mb-2">{leaderboardData[2]?.points ?? 0} pts</p>
-              <div className="bg-gradient-to-br from-orange-400 to-orange-600 rounded-t-2xl p-4 sm:p-6 w-full text-center">
+              <div className="bg-gradient-to-br from-gray-300 to-gray-500 rounded-t-2xl p-4 sm:p-6 w-full text-center">
+                <p className="text-white font-bold text-xs mb-2">SILVER</p>
                 <Medal className="w-8 h-8 sm:w-10 sm:h-10 text-white mx-auto" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Full Leaderboard */}
+        {/* Full Leaderboard - Top 10 */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden animate-scaleIn delay-300">
           <div className="p-6 border-b border-white/10">
-            <h2 className="text-2xl font-bold text-white">Full Rankings</h2>
+            <h2 className="text-2xl font-bold text-white">Top 10 Rankings</h2>
+            <p className="text-white/60 text-sm mt-1">Elite performers of ICEM</p>
           </div>
 
           <div className="divide-y divide-white/10">
-            {leaderboardData.map((user, idx) => (
+            {displayList.map((user, idx) => (
               <div
                 key={user._id || user.userId || `rank-${user.rank}-idx-${idx}`}
                 className={`p-4 sm:p-6 hover:bg-white/5 transition-all duration-300 ${
@@ -275,8 +303,20 @@ function StudentLeaderboard() {
 
                   {/* Avatar & Name */}
                   <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
-                    <div className={`w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br ${getLevelColor(user.level)} rounded-full flex items-center justify-center text-2xl sm:text-3xl border-2 border-white/20 flex-shrink-0`}>
-                      {user.avatar}
+                    <div className={`w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br ${getLevelColor(user.rank)} rounded-full flex items-center justify-center text-2xl sm:text-3xl border-2 border-white/20 flex-shrink-0 overflow-hidden`}>
+                      {typeof user.avatar === 'string' && (user.avatar.startsWith('http') || user.avatar.startsWith('/')) ? (
+                        <img 
+                          src={user.avatar} 
+                          alt={user.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<span class="text-2xl sm:text-3xl">👤</span>';
+                          }}
+                        />
+                      ) : (
+                        <span>{user.avatar}</span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-1">
@@ -322,8 +362,8 @@ function StudentLeaderboard() {
 
                   {/* Level Badge */}
                   <div className="hidden lg:block">
-                    <div className={`bg-gradient-to-r ${getLevelColor(user.level)} px-4 py-2 rounded-xl`}>
-                      <p className="text-white font-bold text-sm">{user.level}</p>
+                    <div className={`bg-gradient-to-r ${getLevelColor(user.rank)} px-4 py-2 rounded-xl`}>
+                      <p className="text-white font-bold text-sm">{getLevelName(user.rank)}</p>
                     </div>
                   </div>
                 </div>
@@ -345,7 +385,7 @@ function StudentLeaderboard() {
               { action: "Daily Login", points: "+10" },
               { action: "Give Feedback", points: "+15" }
             ].map((item, idx) => (
-              <div key={idx} className="bg-white/5 rounded-xl p-4 flex items-center justify-between">
+              <div key={idx} className="bg-white/5 rounded-xl p-4 flex items-center justify-between hover:bg-white/10 transition-all">
                 <span className="text-white/80 text-sm">{item.action}</span>
                 <span className="text-green-400 font-bold">{item.points}</span>
               </div>

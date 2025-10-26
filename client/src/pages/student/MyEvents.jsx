@@ -6,6 +6,7 @@ import { useReactToPrint } from "react-to-print";
 import TicketPDFGenerator from "../../components/student/TicketPDFGenerator"; // adjust path
 import TicketQRCodeModal from "../../components/student/TicketQRCodeModal";
 import StudentFeedbackModal from "../../components/student/StudentFeedbackModal";
+import {useToast} from"../../pages/common/Toast";
 
 
 function StudentMyEvents() {
@@ -18,8 +19,7 @@ function StudentMyEvents() {
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackRegId, setFeedbackRegId] = useState(null);
 
-
-
+  const { addToast } = useToast();  
 
   // Centralized fetch + normalize function so callers (effect, callbacks) get the same data shape
   const fetchMyEvents = async () => {
@@ -80,6 +80,8 @@ function StudentMyEvents() {
       setMyEvents(grouped);
     } catch (err) {
       console.error('Failed to load my events', err);
+      addToast('Error fetching your events. Please try again later.', { type: 'error' });
+
     }
   };
 
