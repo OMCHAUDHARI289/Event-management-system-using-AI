@@ -38,19 +38,28 @@ exports.register = async (req, res) => {
         </a>
       </div>
     `;
-    await sendEmail(email, 'Welcome to ICEM Events!', htmlContent, true);
+    // ✅ 1. Send success response immediately (don’t block frontend)
+res.status(201).json({
+  message: 'User registered successfully',
+  token,
+  user: {
+    id: newUser._id,
+    name: newUser.name,
+    email: newUser.email,
+    role: newUser.role,
+  },
+});
 
-    // 🔥 Send token + user to frontend
-    res.status(201).json({
-      message: 'User registered successfully',
-      token,
-      user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-      },
-    });
+// ✅ 2. Safely send the email in background
+(async () => {
+  try {
+    await sendEmail(email, 'Welcome to ICEM Events!', htmlContent, true);
+    console.log(`✅ Welcome email sent successfully to ${email}`);
+  } catch (emailError) {
+    console.error(`❌ Failed to send welcome email to ${email}:`, emailError.message);
+  }
+})();
+
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
