@@ -1,21 +1,31 @@
 // config/email.js
-import { Resend } from 'resend';
+const SibApiV3Sdk = require("@sendinblue/client");
+require("dotenv").config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const brevo = new SibApiV3Sdk.TransactionalEmailsApi();
+brevo.setApiKey(
+  SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY
+);
 
-export const sendEmail = async (to, subject, content, isHtml = true) => {
+const sendEmail = async (to, subject, html, isHtml = true) => {
   try {
-    const data = await resend.emails.send({
-      from: 'ICEM Events <noreply@icem.com>', // Change to your domain or any name
-      to,
+    const response = await brevo.sendTransacEmail({
+      sender: {
+        name: "ICEM Events",
+        email: process.env.BREVO_SENDER,
+      },
+      to: [{ email: to }],
       subject,
-      [isHtml ? 'html' : 'text']: content,
+      [isHtml ? "htmlContent" : "textContent"]: html,
     });
 
-    console.log('✅ Email sent:', data);
-    return data;
+    console.log(`✅ Email sent successfully to ${to}`);
+    return response;
   } catch (error) {
-    console.error('❌ Resend Email error:', error);
-    throw new Error('Could not send email');
+    console.error("❌ Email sending failed:", error.message || error);
+    throw new Error("Could not send email");
   }
 };
+
+module.exports = { sendEmail };

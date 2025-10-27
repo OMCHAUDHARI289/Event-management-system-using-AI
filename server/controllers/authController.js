@@ -1,6 +1,6 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
-const sendEmail = require("../config/email");
+const {sendEmail} = require("../config/email");
 const jwt = require("jsonwebtoken");
 
 
@@ -27,7 +27,7 @@ exports.register = async (req, res) => {
     // Optional welcome email
     const dashboardUrl = process.env.FRONTEND_URL
       ? `${process.env.FRONTEND_URL}/student/dashboard`
-      : 'http://localhost:5173/student/dashboard';
+      : 'http://icem-events.vercel.app/student/dashboard';
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin:auto; padding:20px; background:#f9f9f9; border-radius:10px; text-align:center;">
         <h2 style="color:#4B0082;">Welcome, ${name}!</h2>

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Mail, Lock, User, Phone, Calendar, ArrowRight, GraduationCap, BookOpen, Users } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Mail, Lock, User, ArrowRight, GraduationCap, BookOpen, Users } from 'lucide-react';
 import icemBg from '../../assets/ICEM.jpg';
 import { registerUser } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -17,63 +17,184 @@ export default function CollegeEventRegister() {
     agreeTerms: false
   });
 
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  // to avoid spamming same toast repeatedly
+  const lastToastRef = useRef({}); // { fieldName: lastMessage }
+  const lastPasswordStrengthRef = useRef('');
+
+  // simple validators
+  const emailIsValid = (email = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const passwordStrength = (pwd = '') => {
+    if (!pwd) return '';
+    // strong if >=10 and has upper+lower+digit+symbol
+    const hasUpper = /[A-Z]/.test(pwd);
+    const hasLower = /[a-z]/.test(pwd);
+    const hasDigit = /\d/.test(pwd);
+    const hasSymbol = /[^A-Za-z0-9]/.test(pwd);
+    if (pwd.length >= 10 && hasUpper && hasLower && hasDigit && hasSymbol) return 'Strong';
+    if (pwd.length >= 6) return 'Medium';
+    return 'Weak';
+  };
+
+  // validate a single field and return message (or empty string)
+  const validateField = (name, value, fullState = formData) => {
+    const v = (val) => (typeof val === 'string' ? val.trim() : val);
+
+    switch (name) {
+      case 'fullName':
+        if (!v(value)) return 'Full name is required';
+        if (v(value).length < 3) return 'Full name must be at least 3 characters';
+        return '';
+      case 'email':
+        if (!v(value)) return 'Email is required';
+        if (!emailIsValid(v(value))) return 'Enter a valid email address';
+        return '';
+      case 'password':
+        if (!value) return 'Password is required';
+        if (value.length < 6) return 'Password must be at least 6 characters';
+        return '';
+      case 'confirmPassword':
+        if (!value) return 'Confirm password is required';
+        if (value !== fullState.password) return 'Passwords do not match';
+        return '';
+      case 'agreeTerms':
+        if (!value) return 'You must agree to Terms and Conditions';
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  // validate all fields — sets errors state and returns boolean
+  const validateAll = (data = formData) => {
+    const newErrors = {};
+    ['fullName', 'email', 'password', 'confirmPassword', 'agreeTerms'].forEach((field) => {
+      const msg = validateField(field, data[field], data);
+      if (msg) newErrors[field] = msg;
+    });
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // update function that does live validation + toast (no spam)
   const handleChange = (e) => {
     const { name, type, value, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
+    const newValue = type === 'checkbox' ? checked : value;
+    const updated = { ...formData, [name]: newValue };
+    setFormData(updated);
+
+    // live validate this field
+    const message = validateField(name, newValue, updated);
+
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[name] = message;
+      else delete next[name];
+      return next;
+    });
+
+    // show toast only when an error appears (or when strength changes)
+    if (message) {
+      if (lastToastRef.current[name] !== message) {
+        addToast(message);
+        lastToastRef.current[name] = message;
+      }
+    } else {
+      // clear last toast marker when field becomes valid
+      if (lastToastRef.current[name]) delete lastToastRef.current[name];
+    }
+
+    // password strength toasts (live but only when strength changes)
+    if (name === 'password') {
+      const strength = passwordStrength(newValue);
+      const last = lastPasswordStrengthRef.current;
+      if (strength && strength !== last) {
+        addToast(`Password strength: ${strength}`);
+        lastPasswordStrengthRef.current = strength;
+      } else if (!strength) {
+        lastPasswordStrengthRef.current = '';
+      }
+      // also revalidate confirmPassword because password changed
+      const confirmMsg = validateField('confirmPassword', updated.confirmPassword, updated);
+      setErrors((prev) => {
+        const next = { ...prev };
+        if (confirmMsg) next.confirmPassword = confirmMsg;
+        else delete next.confirmPassword;
+        return next;
+      });
+      if (confirmMsg && lastToastRef.current['confirmPassword'] !== confirmMsg) {
+        addToast(confirmMsg);
+        lastToastRef.current['confirmPassword'] = confirmMsg;
+      } else if (!confirmMsg) delete lastToastRef.current['confirmPassword'];
+    }
+  };
+
+  // also validate on blur to ensure user gets immediate feedback if they tab out
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    const message = validateField(name, formData[name], formData);
+    if (message && lastToastRef.current[name] !== message) {
+      addToast(message);
+      lastToastRef.current[name] = message;
+    }
+    // update errors object
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[name] = message;
+      else delete next[name];
+      return next;
     });
   };
+
+  // derived: is the form currently valid?
+  const isFormValid =
+    formData.fullName.trim() &&
+    formData.email.trim() &&
+    formData.password &&
+    formData.confirmPassword &&
+    formData.agreeTerms &&
+    Object.keys(errors).length === 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const name = formData.fullName?.trim();
-    const email = formData.email?.trim();
-    const password = formData.password;
-    const confirmPassword = formData.confirmPassword;
-
-    if (!name || !email || !password) {
-      addToast('All fields are required');
+    // final validation before submit
+    if (!validateAll()) {
+      addToast('Please fix the form errors before submitting');
       return;
     }
 
-    if (password !== confirmPassword) {
-      addToast('Passwords do not match!');
-      return;
-    }
-
-    if (!formData.agreeTerms) {
-      addToast('You must agree to Terms and Conditions');
-      return;
-    }
-
+    setLoading(true);
     try {
+      const name = formData.fullName.trim();
+      const email = formData.email.trim();
+      const password = formData.password;
+
       const result = await registerUser({ name, email, password });
 
       console.log('User registered successfully:', result);
       addToast('User registered successfully!');
-      // ✅ Save token & user info to localStorage for auto-login
+      // Save token & user info to localStorage for auto-login
       localStorage.setItem('studentToken', result.token);
       localStorage.setItem('studentUser', JSON.stringify(result.user));
 
-      addToast('Registration successful! Login ');
-
-      // ✅ Redirect to dashboard
+      addToast('Registration successful! Redirecting...');
       navigate('/student/dashboard');
-
     } catch (error) {
       const message = error?.response?.data?.message || error?.message || 'Registration failed';
       console.error('Registration error:', message);
       addToast(message);
+    } finally {
+      setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col lg:flex-row">
       {/* Background Image with Blur - College Campus */}
-      <div 
+      <div
         className="absolute inset-0 z-0"
         style={{
           backgroundImage: `url(${icemBg})`,
@@ -83,9 +204,9 @@ export default function CollegeEventRegister() {
           transform: 'scale(1.1)'
         }}
       />
-      
+
       {/* Animated Gradient Overlay */}
-      <div 
+      <div
         className="absolute inset-0 z-0 transition-all duration-1000"
         style={{
           background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(139, 92, 246, 0.5), rgba(219, 39, 119, 0.5))',
@@ -250,6 +371,7 @@ export default function CollegeEventRegister() {
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 pl-10 lg:pl-12 pr-4 text-white text-sm lg:text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
                     placeholder="John Doe"
                   />
@@ -270,6 +392,7 @@ export default function CollegeEventRegister() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 pl-10 lg:pl-12 pr-4 text-white text-sm lg:text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
                     placeholder="john@college.edu"
                   />
@@ -291,6 +414,7 @@ export default function CollegeEventRegister() {
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 pl-10 lg:pl-12 pr-4 text-white text-sm lg:text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
                       placeholder="••••••••"
                     />
@@ -310,6 +434,7 @@ export default function CollegeEventRegister() {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       className="w-full bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg lg:rounded-xl py-2.5 lg:py-3 pl-10 lg:pl-12 pr-4 text-white text-sm lg:text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 hover:bg-white/15"
                       placeholder="••••••••"
                     />
@@ -325,6 +450,7 @@ export default function CollegeEventRegister() {
                     name="agreeTerms"
                     checked={formData.agreeTerms}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     className="w-4 h-4 lg:w-5 lg:h-5 mt-0.5 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-2 focus:ring-purple-400 transition-all flex-shrink-0"
                   />
                   <span className="ml-2 text-white/90 text-xs sm:text-sm">
@@ -343,9 +469,10 @@ export default function CollegeEventRegister() {
               {/* Submit Button */}
               <button
                 onClick={handleSubmit}
-                className="w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 text-white font-semibold py-3 lg:py-3.5 rounded-lg lg:rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-2 group animate-fadeInUp delay-700"
+                disabled={!isFormValid || loading}
+                className={`w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 text-white font-semibold py-3 lg:py-3.5 rounded-lg lg:rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-2 group animate-fadeInUp delay-700 ${(!isFormValid || loading) ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
-                <span className="text-sm sm:text-base">Create Account</span>
+                <span className="text-sm sm:text-base">{loading ? 'Registering...' : 'Create Account'}</span>
                 <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 group-hover:translate-x-1 transition-transform duration-300" />
               </button>
             </div>
@@ -354,8 +481,8 @@ export default function CollegeEventRegister() {
             <div className="text-center mt-6 lg:mt-8 animate-fadeInUp delay-700">
               <p className="text-white/70 text-xs sm:text-sm">
                 Already have an account?{' '}
-                <span 
-                  onClick={() => navigate('/auth/login')} 
+                <span
+                  onClick={() => navigate('/auth/login')}
                   className="text-white font-semibold hover:underline transition-all duration-300 cursor-pointer"
                 >
                   Sign In
