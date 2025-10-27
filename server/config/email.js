@@ -1,44 +1,21 @@
-const nodemailer = require('nodemailer');
-require('dotenv').config(); // make sure .env is loaded
+// config/email.js
+import { Resend } from 'resend';
 
-// Create reusable transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,  // your Gmail address
-    pass: process.env.EMAIL_PASS   // App Password, NOT your Gmail password
-  }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Verify connection configuration
-transporter.verify((err, success) => {
-  if (err) console.error('SMTP connection error:', err);
-  else console.log('SMTP is ready to send emails');
-});
-
-/**
- * Send email helper
- * @param {string} to - recipient email
- * @param {string} subject - email subject
- * @param {string} content - email content (HTML or plain text)
- * @param {boolean} isHtml - true if content is HTML
- */
-const sendEmail = async (to, subject, content, isHtml = false) => {
+export const sendEmail = async (to, subject, content, isHtml = true) => {
   try {
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    const data = await resend.emails.send({
+      from: 'ICEM Events <noreply@icem.com>', // Change to your domain or any name
       to,
       subject,
-      ...(isHtml ? { html: content } : { text: content })
-    };
+      [isHtml ? 'html' : 'text']: content,
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent:', info.response);
-    return info;
+    console.log('✅ Email sent:', data);
+    return data;
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error('❌ Resend Email error:', error);
     throw new Error('Could not send email');
   }
 };
-
-module.exports = sendEmail;

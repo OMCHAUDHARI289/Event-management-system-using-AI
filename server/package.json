@@ -30,6 +30,7 @@
     "node-summarizer": "^1.0.7",
     "nodemailer": "^7.0.7",
     "openai": "^6.6.0",
+    "resend": "^6.3.0",
     "stopwords": "^0.0.9"
   },
   "devDependencies": {
