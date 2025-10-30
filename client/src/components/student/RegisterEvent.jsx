@@ -44,7 +44,7 @@ function EventRegistration({ event, onClose }) {
     agreeTerms: false,
   });
 
-  const [studentId, setStudentId] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   const { id: routeId } = useParams();
   const navigate = useNavigate();
@@ -110,7 +110,7 @@ function EventRegistration({ event, onClose }) {
       try {
         const profile = await getMyProfile();
         if (!mounted || !profile) return;
-        setStudentId(profile.id || profile._id || profile.userId || null);
+        setUserId(profile.id || profile._id || profile.userId || null);
         setFormData((prev) => ({
           ...prev,
           fullName: prev.fullName || profile.fullName || profile.name || "",
@@ -204,7 +204,7 @@ function EventRegistration({ event, onClose }) {
       }
 
       // Paid event: create order
-      const orderResp = await createEventPaymentOrder(currentEvent.id || currentEvent._id, studentId, totalAmount);
+      const orderResp = await createEventPaymentOrder(currentEvent.id || currentEvent._id, userId, totalAmount);
 
       // Normalize order object: the backend might return { success, order } or { success, orderId, amount, key }
       const orderObj = orderResp?.order || (orderResp?.orderId ? {
@@ -257,7 +257,7 @@ function EventRegistration({ event, onClose }) {
             // Verify on backend (this should both verify and register in your backend verify endpoint)
             const verifyRes = await verifyEventPayment({
               eventId: currentEvent.id || currentEvent._id,
-              studentId,
+              userId,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_order_id: response.razorpay_order_id,
               razorpay_signature: response.razorpay_signature,

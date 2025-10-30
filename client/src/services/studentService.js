@@ -181,10 +181,10 @@ export const getCertificates = async () => {
 };
 
 // Create Razorpay order for event registration
-export const createEventPaymentOrder = async (eventId, studentId, amount) => {
+export const createEventPaymentOrder = async (eventId, userId, amount) => {
   const res = await api.post(`/api/payment/register-event`, {
     eventId,
-    studentId,
+    userId,
     amount,
   });
   return res.data;
