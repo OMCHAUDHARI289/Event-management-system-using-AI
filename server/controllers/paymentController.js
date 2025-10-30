@@ -9,10 +9,17 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// 1️⃣ Create order
+// 1️⃣ Create Razorpay order
 exports.createOrder = async (req, res) => {
   try {
-    const { amount, eventId, studentId } = req.body;
+    const { amount, eventId, userId } = req.body;
+
+    if (!amount || !eventId || !userId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields (amount, eventId, or userId)",
+      });
+    }
 
     const shortReceipt = `rcpt_${Date.now().toString().slice(-8)}_${Math.floor(Math.random() * 1000)}`;
 
@@ -20,7 +27,7 @@ exports.createOrder = async (req, res) => {
       amount: amount * 100,
       currency: "INR",
       receipt: shortReceipt,
-      notes: { eventId, studentId },
+      notes: { eventId, userId },
     };
 
     const order = await razorpay.orders.create(options);
@@ -31,7 +38,7 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// 2️⃣ Verify payment and register student
+// 2️⃣ Verify payment & register student
 exports.verifyEventPayment = async (req, res) => {
   try {
     const {
@@ -39,7 +46,7 @@ exports.verifyEventPayment = async (req, res) => {
       razorpay_payment_id,
       razorpay_signature,
       eventId,
-      userId, // ✅ use userId instead of studentId
+      userId,
       fullName,
       email,
       phone,
@@ -48,26 +55,30 @@ exports.verifyEventPayment = async (req, res) => {
       amount,
     } = req.body;
 
+    // 🔍 Validate required fields
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({ success: false, message: "Invalid payment data" });
+    }
+    if (!userId || !eventId) {
+      return res.status(400).json({ success: false, message: "Missing userId or eventId" });
     }
 
     // 🔐 Verify Razorpay signature
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
     if (generatedSignature !== razorpay_signature) {
       return res.status(400).json({ success: false, message: "Payment verification failed" });
     }
 
-    // ✅ Find or create registration
+    // ✅ Find existing registration
     let registration = await Registration.findOne({ eventId, userId });
 
     if (!registration) {
-      registration = await Registration.create({
-        userId, // ✅ matches schema
+      registration = new Registration({
+        userId,
         eventId,
         fullName,
         email,
@@ -80,16 +91,17 @@ exports.verifyEventPayment = async (req, res) => {
         amountPaid: amount,
         ticketNumber: "TKT" + Date.now().toString().slice(-6),
       });
-
-      // 📈 Update event registration count
-      await Event.findByIdAndUpdate(eventId, { $inc: { registrations: 1 } });
     } else {
       registration.paymentStatus = "paid";
       registration.paymentId = razorpay_payment_id;
       registration.paidAt = new Date();
       registration.amountPaid = amount;
-      await registration.save();
     }
+
+    await registration.save();
+
+    // 📈 Update event registration count
+    await Event.findByIdAndUpdate(eventId, { $inc: { registrations: 1 } });
 
     res.json({
       success: true,
@@ -100,7 +112,7 @@ exports.verifyEventPayment = async (req, res) => {
     console.error("Payment verification error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error during payment verification",
+      message: error.message || "Server error during payment verification",
     });
   }
 };
