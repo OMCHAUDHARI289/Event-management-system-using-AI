@@ -1,79 +1,131 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Camera, CheckCircle, XCircle, AlertCircle, Loader2, User, Ticket } from "lucide-react";
+import {
+  X,
+  Camera,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Loader2,
+  User,
+  Ticket,
+} from "lucide-react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
 import { markAttendance } from "../../services/adminService";
 
-function QRScannerModal({ isOpen, onClose, eventId }) {
+function QRScannerModal({ isOpen, onClose }) {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [manualTicket, setManualTicket] = useState("");
+
+  const codeReaderRef = useRef(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
+  // ✅ Start or stop camera when modal opens/closes
   useEffect(() => {
-    if (isOpen) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
+    if (isOpen) startCamera();
+    else stopCamera();
 
     return () => stopCamera();
   }, [isOpen]);
 
+  // ✅ Start the camera
   const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" }
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-      }
-      setScanning(true);
-    } catch (err) {
-      console.error("Camera access denied:", err);
-      setScanResult({ 
-        status: 'error', 
-        message: 'Camera access denied. Please allow camera permissions.' 
-      });
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setScanning(false);
-  };
-
-const handleManualScan = async () => {
-  if (!manualTicket) return;
-  setLoading(true);
-
   try {
-    const res = await markAttendance(manualTicket);
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+    });
 
-    if (res.success) {
-      setScanResult({ status: 'success', studentData: res.studentData });
-    } else if (res.status === 'duplicate') {
-      setScanResult({ status: 'duplicate', studentData: res.studentData });
-    } else {
-      setScanResult({ status: 'error', message: res.message });
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      streamRef.current = stream;
     }
+
+    setScanning(true);
+
+    const codeReader = new BrowserMultiFormatReader();
+    // 🔥 decodeFromVideoDevice returns a controls object
+    const controls = await codeReader.decodeFromVideoDevice(null, videoRef.current, async (result, err) => {
+      if (result && !loading) {
+        const ticketNumber = result.getText();
+        console.log("🎟️ QR Detected:", ticketNumber);
+        setLoading(true);
+        stopCamera();
+
+        try {
+          const res = await markAttendance(ticketNumber);
+          if (res.success) {
+            setScanResult({ status: "success", studentData: res.studentData });
+          } else if (res.duplicate) {
+            setScanResult({ status: "duplicate", studentData: res.studentData });
+          } else {
+            setScanResult({ status: "error", message: res.message });
+          }
+        } catch (err) {
+          console.error(err);
+          setScanResult({ status: "error", message: "Unable to connect to server" });
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+
+    // ✅ Save the controls object for stopping later
+    codeReaderRef.current = controls;
+
   } catch (err) {
-    console.error(err);
-    setScanResult({ status: 'error', message: 'Unable to connect to server' });
-  } finally {
-    setLoading(false);
-    setManualTicket("");
+    console.error("Camera access denied:", err);
+    setScanResult({
+      status: "error",
+      message: "Camera access denied. Please allow camera permissions.",
+    });
   }
 };
 
+const stopCamera = () => {
+  // ✅ Use controls.stop() instead of reader.reset()
+  if (codeReaderRef.current && typeof codeReaderRef.current.stop === "function") {
+    codeReaderRef.current.stop();
+    codeReaderRef.current = null;
+  }
+
+  if (streamRef.current) {
+    streamRef.current.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }
+
+  setScanning(false);
+};
+
+  // ✅ Manual ticket entry handler
+  const handleManualScan = async () => {
+    if (!manualTicket) return;
+    setLoading(true);
+    try {
+      const res = await markAttendance(manualTicket);
+      if (res.success) {
+        setScanResult({ status: "success", studentData: res.studentData });
+      } else if (res.duplicate) {
+        setScanResult({ status: "duplicate", studentData: res.studentData });
+      } else {
+        setScanResult({ status: "error", message: res.message });
+      }
+    } catch (err) {
+      console.error(err);
+      setScanResult({
+        status: "error",
+        message: "Unable to connect to server",
+      });
+    } finally {
+      setLoading(false);
+      setManualTicket("");
+    }
+  };
 
   const handleScanAgain = () => {
     setScanResult(null);
-    setScanning(true);
+    startCamera();
   };
 
   const handleClose = () => {
@@ -85,10 +137,10 @@ const handleManualScan = async () => {
 
   if (!isOpen) return null;
 
+  // ✅ Modal UI
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-3xl max-w-lg w-full border border-white/10 shadow-2xl animate-scaleIn max-h-[90vh] overflow-y-auto">
-        
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-pink-600 p-6 flex items-center justify-between rounded-t-3xl z-10">
           <div className="flex items-center space-x-3">
@@ -105,8 +157,6 @@ const handleManualScan = async () => {
 
         {/* Content */}
         <div className="p-6 space-y-6">
-
-          {/* Camera View / Results */}
           {!scanResult ? (
             <div className="space-y-4">
               {/* Camera Preview */}
@@ -118,8 +168,8 @@ const handleManualScan = async () => {
                   muted
                   className="w-full h-full object-cover"
                 />
-                
-                {/* Scanning Overlay */}
+
+                {/* Scanning overlay */}
                 {scanning && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="border-4 border-white/50 w-64 h-64 rounded-2xl relative">
@@ -129,7 +179,7 @@ const handleManualScan = async () => {
                   </div>
                 )}
 
-                {/* Loading Overlay */}
+                {/* Loading overlay */}
                 {loading && (
                   <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                     <div className="text-center">
@@ -140,16 +190,16 @@ const handleManualScan = async () => {
                 )}
               </div>
 
-              {/* Instructions */}
-              <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
-                <p className="text-purple-200 text-sm text-center font-medium">
-                  📷 Position the QR code within the frame to scan
-                </p>
+              {/* Instruction */}
+              <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 text-center text-purple-200 text-sm font-medium">
+                📷 Position the QR code within the frame to scan
               </div>
 
               {/* Manual Entry */}
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4">
-                <p className="text-white/60 text-xs mb-3 text-center">Or enter ticket number manually:</p>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <p className="text-white/60 text-xs mb-3 text-center">
+                  Or enter ticket number manually:
+                </p>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -158,7 +208,7 @@ const handleManualScan = async () => {
                     placeholder="Enter ticket number"
                     className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
                     disabled={loading}
-                    onKeyPress={(e) => e.key === 'Enter' && handleManualScan()}
+                    onKeyPress={(e) => e.key === "Enter" && handleManualScan()}
                   />
                   <button
                     onClick={handleManualScan}
@@ -171,75 +221,66 @@ const handleManualScan = async () => {
               </div>
             </div>
           ) : (
-            /* Scan Result */
+            /* ✅ Result UI */
             <div className="space-y-4">
-              {/* Success Result */}
-              {scanResult.status === 'success' && (
-                <div className="bg-green-500/20 backdrop-blur-xl border border-green-500/30 rounded-2xl p-6 animate-successPulse">
-                  <div className="text-center mb-6">
-                    <div className="relative w-20 h-20 mx-auto mb-4">
-                      <CheckCircle className="w-20 h-20 text-green-400" />
-                      <div className="absolute inset-0 border-4 border-green-400 rounded-full animate-ping opacity-75"></div>
-                    </div>
-                    <h3 className="text-2xl font-bold text-green-200 mb-1">Attendance Marked!</h3>
-                    <p className="text-green-300/80 text-sm">Student checked in successfully</p>
-                  </div>
+              {/* Success */}
+              {scanResult.status === "success" && (
+                <div className="bg-green-500/20 border border-green-500/30 rounded-2xl p-6 text-center animate-successPulse">
+                  <CheckCircle className="w-20 h-20 text-green-400 mx-auto mb-4" />
+                  <h3 className="text-2xl font-bold text-green-200 mb-1">
+                    Attendance Marked!
+                  </h3>
+                  <p className="text-green-300/80 text-sm mb-4">
+                    Student checked in successfully
+                  </p>
 
-                  {/* Student Details */}
-                  <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 space-y-3">
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
                     <div className="flex items-center space-x-3">
-                      <User className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <div>
-                        <p className="text-white/60 text-xs">Student Name</p>
-                        <p className="text-white font-semibold">{scanResult.studentData.name}</p>
-                      </div>
+                      <User className="w-5 h-5 text-green-400" />
+                      <p className="text-white font-semibold">
+                        {scanResult.studentData.name}
+                      </p>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <Ticket className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <div>
-                        <p className="text-white/60 text-xs">Ticket Number</p>
-                        <p className="text-white font-semibold font-mono">{scanResult.studentData.ticketNumber}</p>
-                      </div>
+                      <Ticket className="w-5 h-5 text-green-400" />
+                      <p className="text-white font-mono">
+                        {scanResult.studentData.ticketNumber}
+                      </p>
                     </div>
-                    {scanResult.studentData.department && (
-                      <div className="flex items-center space-x-3">
-                        <User className="w-5 h-5 text-green-400 flex-shrink-0" />
-                        <div>
-                          <p className="text-white/60 text-xs">Department & Year</p>
-                          <p className="text-white font-semibold">{scanResult.studentData.department} - {scanResult.studentData.year}</p>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
 
-              {/* Error Result */}
-              {scanResult.status === 'error' && (
-                <div className="bg-red-500/20 backdrop-blur-xl border border-red-500/30 rounded-2xl p-6 text-center animate-errorShake">
-                  <XCircle className="w-20 h-20 text-red-400 mx-auto mb-4" />
-                  <h3 className="text-2xl font-bold text-red-200 mb-2">Scan Failed</h3>
-                  <p className="text-red-300/80 text-sm">{scanResult.message || 'Invalid ticket or already marked'}</p>
-                </div>
-              )}
-
-              {/* Duplicate Entry */}
-              {scanResult.status === 'duplicate' && (
-                <div className="bg-yellow-500/20 backdrop-blur-xl border border-yellow-500/30 rounded-2xl p-6 text-center">
+              {/* Duplicate */}
+              {scanResult.status === "duplicate" && (
+                <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-2xl p-6 text-center">
                   <AlertCircle className="w-20 h-20 text-yellow-400 mx-auto mb-4" />
-                  <h3 className="text-2xl font-bold text-yellow-200 mb-2">Already Checked In</h3>
-                  <p className="text-yellow-300/80 text-sm">This student has already marked attendance</p>
-                  
-                  {scanResult.studentData && (
-                    <div className="mt-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3">
-                      <p className="text-white font-semibold">{scanResult.studentData.name}</p>
-                      <p className="text-white/60 text-xs">Ticket: {scanResult.studentData.ticketNumber}</p>
-                    </div>
-                  )}
+                  <h3 className="text-2xl font-bold text-yellow-200 mb-2">
+                    Already Checked In
+                  </h3>
+                  <p className="text-yellow-300/80 text-sm mb-2">
+                    This student has already marked attendance
+                  </p>
+                  <p className="text-white font-semibold">
+                    {scanResult.studentData.name} –{" "}
+                    {scanResult.studentData.ticketNumber}
+                  </p>
                 </div>
               )}
 
-              {/* Action Button */}
+              {/* Error */}
+              {scanResult.status === "error" && (
+                <div className="bg-red-500/20 border border-red-500/30 rounded-2xl p-6 text-center animate-errorShake">
+                  <XCircle className="w-20 h-20 text-red-400 mx-auto mb-4" />
+                  <h3 className="text-2xl font-bold text-red-200 mb-2">
+                    Scan Failed
+                  </h3>
+                  <p className="text-red-300/80 text-sm">
+                    {scanResult.message || "Invalid ticket or already marked"}
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={handleScanAgain}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-xl transition-all transform hover:scale-105"
@@ -272,31 +313,24 @@ const handleManualScan = async () => {
           50% { top: 100%; }
           100% { top: 0; }
         }
-        .animate-scaleIn {
-          animation: scaleIn 0.3s ease-out forwards;
-        }
-        .animate-successPulse {
-          animation: successPulse 0.5s ease-out forwards;
-        }
-        .animate-errorShake {
-          animation: errorShake 0.5s ease-out forwards;
-        }
-        .animate-scan {
-          animation: scan 2s linear infinite;
-        }
+        .animate-scaleIn { animation: scaleIn 0.3s ease-out forwards; }
+        .animate-successPulse { animation: successPulse 0.5s ease-out forwards; }
+        .animate-errorShake { animation: errorShake 0.5s ease-out forwards; }
+        .animate-scan { animation: scan 2s linear infinite; }
       `}</style>
     </div>
   );
 }
 
-// Example usage
 export default function App() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-white mb-8">Club Member Scanner</h1>
+        <h1 className="text-4xl font-bold text-white mb-8">
+          Club Member Scanner
+        </h1>
         <button
           onClick={() => setIsScannerOpen(true)}
           className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-8 py-4 rounded-xl transition-all transform hover:scale-105 shadow-lg flex items-center space-x-2 mx-auto"

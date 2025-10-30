@@ -179,3 +179,19 @@ export const getCertificates = async () => {
   const res = await api.get(`${STUDENT_BASE}/certificates`, getAuthHeaders());
   return res.data; // array of certificates
 };
+
+// Create Razorpay order for event registration
+export const createEventPaymentOrder = async (eventId, studentId, amount) => {
+  const res = await api.post(`/api/payment/register-event`, {
+    eventId,
+    studentId,
+    amount,
+  });
+  return res.data;
+};
+
+// Verify Razorpay payment after success
+export const verifyEventPayment = async (paymentData) => {
+  const res = await api.post(`/api/payment/verify-registration`, paymentData);
+  return res.data;
+};

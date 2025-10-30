@@ -102,6 +102,7 @@ export default function CollegeEventRegister() {
         lastToastRef.current[name] = message;
       }
     } else {
+      
       // clear last toast marker when field becomes valid
       if (lastToastRef.current[name]) delete lastToastRef.current[name];
     }

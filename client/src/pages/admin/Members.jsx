@@ -60,7 +60,7 @@ function AdminMembers() {
     setLoading(true);
     try {
       console.log('Fetching club members...');
-      const members = await getClubMembers(); // already an array
+      const members = await getClubMembers();
       console.log('Club members response:', members);
       setClubMembers(members);
 
@@ -80,7 +80,6 @@ function AdminMembers() {
   const handleAddMember = async () => {
     if (!addForm.name || !addForm.email || !addForm.password) return;
     try {
-      // Parse role and position
       const [role, position] = addForm.role.includes('|') 
         ? addForm.role.split('|') 
         : [addForm.role, undefined];
@@ -95,7 +94,6 @@ function AdminMembers() {
 
       const created = newUser.user || newUser;
 
-      // Refresh data from server
       const membersRes = await getClubMembers();
       setClubMembers(membersRes.members || []);
 
@@ -169,7 +167,6 @@ function AdminMembers() {
     }
     setDeleteTarget({ id, type, name });
     setDeletePopupOpen(true);
-    addToast(`${deleteTarget.name} deleted successfully!`, 'success');
   };
 
   const handleDeleteConfirmed = async () => {
@@ -184,6 +181,7 @@ function AdminMembers() {
         await deleteStudent(id);
         setStudents(prev => prev.filter(s => getId(s) !== id));
       }
+      addToast(`${deleteTarget.name} deleted successfully!`, "success");
     } catch (err) {
       console.error("Error deleting member:", err);
       addToast("Failed to delete user", "error");
@@ -212,7 +210,6 @@ function AdminMembers() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
-      {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 right-10 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-float"></div>
         <div className="absolute bottom-20 left-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-float-delayed"></div>
@@ -230,7 +227,6 @@ function AdminMembers() {
       `}</style>
 
       <div className="relative z-10 p-4 sm:p-6 lg:p-8">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 animate-fadeIn">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
@@ -252,7 +248,6 @@ function AdminMembers() {
           </div>
         </div>
 
-        {/* View Toggle */}
         <div className="flex space-x-3 mb-8 animate-fadeIn">
           <button onClick={() => setView("club")} className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${view === "club" ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg' : 'bg-white/5 text-white/70 hover:bg-white/10 border border-white/10'}`}>
             <Shield className="w-4 h-4" />
@@ -267,7 +262,6 @@ function AdminMembers() {
           </button>
         </div>
 
-        {/* Add Member Form */}
         {showAddForm && (
           <div className="mb-8 animate-slideDown">
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
@@ -311,7 +305,6 @@ function AdminMembers() {
           </div>
         )}
 
-        {/* Search (students) */}
         {view === "students" && (
           <div className="mb-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 animate-fadeIn">
             <div className="flex flex-col sm:flex-row gap-4">
@@ -323,7 +316,6 @@ function AdminMembers() {
           </div>
         )}
 
-        {/* Filter (club) */}
         {view === "club" && (
           <div className="mb-6 flex items-center space-x-3 animate-fadeIn">
             <Filter className="w-5 h-5 text-white/60" />
@@ -339,7 +331,6 @@ function AdminMembers() {
           </div>
         )}
 
-        {/* Club Members Grid */}
         {view === "club" && (
           <>
             {loading ? (
@@ -363,17 +354,14 @@ function AdminMembers() {
                   className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300 animate-scaleIn"
                   style={{ animationDelay: `${idx * 40}ms`, opacity: 0 }}
                 >
-                  {/* Delete button */}
                   <button
                     onClick={() => openDeletePopup(member, "club", member.name)}
-                    className={`absolute top-4 right-4 w-10 h-10 rounded-lg z-10 ${memberId ? 'bg-red-500/10 hover:bg-red-500/20' : 'bg-white/5 cursor-not-allowed opacity-50'} flex items-center justify-center border border-red-500/10 transition-colors`}
+                    className="absolute top-4 right-4 w-10 h-10 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-lg group z-10"
                     aria-label={`Delete ${member.name}`}
-                    disabled={!memberId}
                   >
-                    <Trash2 className="w-4 h-4 text-red-400" />
+                    <Trash2 className="w-5 h-5 text-red-400 group-hover:text-red-300" />
                   </button>
 
-                  {/* Member Header */}
                   <div className="flex items-center space-x-3 mb-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                       <UserCircle className="w-7 h-7 text-white" />
@@ -386,7 +374,6 @@ function AdminMembers() {
                     </div>
                   </div>
 
-                  {/* Member Details */}
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2 text-white/70">
                       <Mail className="w-4 h-4 flex-shrink-0" />
@@ -421,7 +408,6 @@ function AdminMembers() {
                       </div>
                     )}
 
-                    {/* Demote button */}
                     <button
                       onClick={() => { setDemoteTarget(member); setDemotePopupOpen(true); }}
                       className="w-full flex items-center justify-center space-x-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 font-semibold px-4 py-2 rounded-lg mt-3 transition-all transform hover:scale-105"
@@ -438,7 +424,6 @@ function AdminMembers() {
           </>
         )}
 
-        {/* Students Table */}
         {view === "students" && (
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden animate-scaleIn">
             <div className="overflow-x-auto">
@@ -488,11 +473,11 @@ function AdminMembers() {
                             
                             <button
                               onClick={() => openDeletePopup(student, "student", student.name)}
-                              className={`w-10 h-10 rounded-lg ${studentId ? 'bg-red-500/10 hover:bg-red-500/20' : 'bg-white/5 cursor-not-allowed opacity-50'} flex items-center justify-center border border-red-500/10 transition-colors`}
+                              className="w-10 h-10 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center border border-red-500/30 transition-all hover:scale-110 group"
                               aria-label={`Delete ${student.name}`}
                               disabled={!studentId}
                             >
-                              <Trash2 className="w-4 h-4 text-red-400" />
+                              <Trash2 className="w-4 h-4 text-red-400 group-hover:text-red-300" />
                             </button>
                           </div>
                         </td>
@@ -505,7 +490,6 @@ function AdminMembers() {
           </div>
         )}
 
-        {/* Promote Modal */}
         {showPromoteModal && selectedStudent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
             <div className="bg-slate-900 border border-white/20 rounded-2xl p-6 max-w-md w-full animate-scaleIn">
@@ -546,7 +530,6 @@ function AdminMembers() {
           </div>
         )}
 
-        {/* Delete Popups */}
         <DeletePopup
           isOpen={deletePopupOpen}
           onClose={() => setDeletePopupOpen(false)}

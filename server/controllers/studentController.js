@@ -440,7 +440,7 @@ exports.getLeaderboard = async (req, res) => {
     const leaderboard = await Promise.all(
       users.map(async (user) => {
         const stats = userStats[user._id.toString()] || { totalRegistrations: 0, totalAttended: 0, totalFeedback: 0, attendedDates: [] };
-        const points = stats.totalRegistrations * 20 + stats.totalAttended * 30 + stats.totalFeedback * 15;
+        const points = stats.totalRegistrations * 20 + stats.totalAttended * 100 + stats.totalFeedback * 15;
 
         let level = 'Bronze';
         if (points >= 2500) level = 'Platinum';

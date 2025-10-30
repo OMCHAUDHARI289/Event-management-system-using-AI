@@ -829,46 +829,64 @@ async function cloudinaryStatus(req, res) {
 
 const { updateLeaderboard } = require(`..//controllers//studentController`)
 // Mark attendance based only on ticket number
+// ✅ Mark attendance based on ticket number (from QR or manual entry)
 async function markAttendance(req, res) {
   try {
     const { ticketNumber } = req.body;
 
     if (!ticketNumber) {
-      return res.status(400).json({ success: false, message: "Ticket number is required" });
+      return res.status(400).json({
+        success: false,
+        message: "Ticket number is required",
+      });
     }
 
-    const registration = await Registration.findOne({ ticketNumber });
+    // ✅ Find registration by event & ticket number
+    const registration = await Registration.findOneAndUpdate(
+      {
+        ticketNumber,
+        $or: [{ attended: false }, { attended: { $exists: false } }],
+      },
+      {
+        $set: {
+          attended: true,
+          attendedAt: new Date(),
+          attendanceMarked: true,
+        },
+      },
+      { new: true }
+    );
 
+    // ❌ If not found or already marked
     if (!registration) {
-      return res.status(404).json({ success: false, message: "Ticket not found" });
-    }
+      const existing = await Registration.findOne({ ticketNumber });
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          message: "Ticket not found for this event",
+        });
+      }
 
-    // Already marked
-    if (registration.attended || registration.attendanceMarked) {
       return res.json({
-        status: "duplicate",
+        success: false,
+        duplicate: true,
+        message: "Already checked in",
         studentData: {
-          name: registration.fullName,
-          ticketNumber: registration.ticketNumber,
-          department: registration.department,
-          year: registration.year,
+          name: existing.fullName,
+          ticketNumber: existing.ticketNumber,
+          department: existing.department,
+          year: existing.year,
         },
       });
     }
 
-    // ✅ Mark attendance
-    registration.attended = true;
-    registration.attendedAt = new Date();
-    registration.attendanceMarked = true;
-    await registration.save();
+    // ✅ Log attendance
+    console.log("✅ Attendance marked:", registration.ticketNumber);
 
-    // ✅ Add points to leaderboard
-    if (registration.userId) {
-      await updateLeaderboard(registration.userId, 30); // 30 points for attendance
-    }
-
+    // ✅ Success response
     return res.json({
       success: true,
+      message: "Attendance marked successfully",
       studentData: {
         name: registration.fullName,
         ticketNumber: registration.ticketNumber,
@@ -877,10 +895,15 @@ async function markAttendance(req, res) {
       },
     });
   } catch (err) {
-    console.error("Error marking attendance:", err && err.stack ? err.stack : err);
-    res.status(500).json({ success: false, message: "Server error", error: err && err.message ? err.message : undefined });
+    console.error("❌ Attendance error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
   }
 }
+
 
 
 // ======================== EXPORT ========================

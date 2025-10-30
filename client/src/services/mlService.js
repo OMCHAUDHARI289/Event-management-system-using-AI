@@ -1,6 +1,6 @@
 // src/services/mlService.js
 import api from './api'; // axios instance
-const AI_BASE = 'http://https://event-management-system-using-ai.onrender.com/api/ai';
+const AI_BASE = 'http://localhost:5000/api/ai';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
