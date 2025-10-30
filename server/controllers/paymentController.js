@@ -1,6 +1,7 @@
+// controllers/paymentController.js
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
-const Registration = require("../models/Registration"); // adjust path if different
+const Registration = require("../models/Registration");
 const Event = require("../models/Event");
 
 const razorpay = new Razorpay({
@@ -8,22 +9,18 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// 1️⃣ Create Razorpay order for an event registration
+// 1️⃣ Create order
 exports.createOrder = async (req, res) => {
   try {
     const { amount, eventId, studentId } = req.body;
 
-    // ✅ Make a short and unique receipt (max 40 chars)
     const shortReceipt = `rcpt_${Date.now().toString().slice(-8)}_${Math.floor(Math.random() * 1000)}`;
 
     const options = {
-      amount: amount * 100, // amount in paise
+      amount: amount * 100,
       currency: "INR",
       receipt: shortReceipt,
-      notes: {
-        eventId,
-        studentId,
-      },
+      notes: { eventId, studentId },
     };
 
     const order = await razorpay.orders.create(options);
@@ -34,7 +31,7 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// 2️⃣ Verify payment and mark registration as paid
+// 2️⃣ Verify payment and register student
 exports.verifyEventPayment = async (req, res) => {
   try {
     const {
@@ -43,12 +40,19 @@ exports.verifyEventPayment = async (req, res) => {
       razorpay_signature,
       eventId,
       studentId,
+      fullName,
+      email,
+      phone,
+      department,
+      year,
+      amount,
     } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({ success: false, message: "Invalid payment data" });
     }
 
+    // 🔐 Verify signature
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(razorpay_order_id + "|" + razorpay_payment_id)
@@ -58,20 +62,40 @@ exports.verifyEventPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: "Payment verification failed" });
     }
 
-    // ✅ Mark registration as paid
-    const registration = await Registration.findOneAndUpdate(
-      { eventId, studentId },
-      {
+    // ✅ Check if already registered
+    let registration = await Registration.findOne({ eventId, studentId });
+
+    if (!registration) {
+      // ➕ Create a new registration
+      registration = await Registration.create({
+        studentId,
+        eventId,
+        fullName,
+        email,
+        phone,
+        department,
+        year,
         paymentStatus: "paid",
         paymentId: razorpay_payment_id,
         paidAt: new Date(),
-      },
-      { new: true }
-    );
+        amountPaid: amount,
+        ticketNumber: "TKT" + Date.now().toString().slice(-6),
+      });
+
+      // 📈 Optionally increment the event’s registration count
+      await Event.findByIdAndUpdate(eventId, { $inc: { registrations: 1 } });
+    } else {
+      // 🧾 If exists, mark as paid
+      registration.paymentStatus = "paid";
+      registration.paymentId = razorpay_payment_id;
+      registration.paidAt = new Date();
+      registration.amountPaid = amount;
+      await registration.save();
+    }
 
     res.json({
       success: true,
-      message: "Payment verified successfully",
+      message: "Payment verified and registration completed successfully",
       registration,
     });
   } catch (error) {
