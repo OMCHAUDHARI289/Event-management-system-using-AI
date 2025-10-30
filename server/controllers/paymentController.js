@@ -39,7 +39,7 @@ exports.verifyEventPayment = async (req, res) => {
       razorpay_payment_id,
       razorpay_signature,
       eventId,
-      studentId,
+      userId, // ✅ use userId instead of studentId
       fullName,
       email,
       phone,
@@ -52,7 +52,7 @@ exports.verifyEventPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid payment data" });
     }
 
-    // 🔐 Verify signature
+    // 🔐 Verify Razorpay signature
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(razorpay_order_id + "|" + razorpay_payment_id)
@@ -62,13 +62,12 @@ exports.verifyEventPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: "Payment verification failed" });
     }
 
-    // ✅ Check if already registered
-    let registration = await Registration.findOne({ eventId, studentId });
+    // ✅ Find or create registration
+    let registration = await Registration.findOne({ eventId, userId });
 
     if (!registration) {
-      // ➕ Create a new registration
       registration = await Registration.create({
-        studentId,
+        userId, // ✅ matches schema
         eventId,
         fullName,
         email,
@@ -82,10 +81,9 @@ exports.verifyEventPayment = async (req, res) => {
         ticketNumber: "TKT" + Date.now().toString().slice(-6),
       });
 
-      // 📈 Optionally increment the event’s registration count
+      // 📈 Update event registration count
       await Event.findByIdAndUpdate(eventId, { $inc: { registrations: 1 } });
     } else {
-      // 🧾 If exists, mark as paid
       registration.paymentStatus = "paid";
       registration.paymentId = razorpay_payment_id;
       registration.paidAt = new Date();
@@ -100,6 +98,9 @@ exports.verifyEventPayment = async (req, res) => {
     });
   } catch (error) {
     console.error("Payment verification error:", error);
-    res.status(500).json({ success: false, message: "Server error during payment verification" });
+    res.status(500).json({
+      success: false,
+      message: "Server error during payment verification",
+    });
   }
 };
