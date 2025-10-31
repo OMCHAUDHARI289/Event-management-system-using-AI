@@ -1,8 +1,8 @@
 import api from './api'; // your axios instance
 
-const STUDENT_BASE = 'https://event-management-system-using-ai.onrender.com/api/student';
-const ADMIN_BASE = 'https://event-management-system-using-ai.onrender.com/api/admin';
-const AI_BASE = 'https://event-management-system-using-ai.onrender.com/api/ai';
+const STUDENT_BASE = 'http://localhost:5000/api/student';
+const ADMIN_BASE = 'http://localhost:5000/api/admin';
+const AI_BASE = 'http://localhost:5000/api/ai';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');

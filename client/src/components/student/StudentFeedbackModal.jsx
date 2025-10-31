@@ -15,7 +15,7 @@ export default function StudentFeedbackModal({
   const [comments, setComments] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const addToast = useToast();
+  const { addToast } = useToast();
 
   const handleSubmit = async () => {
     if (rating < 1 || rating > 5) {

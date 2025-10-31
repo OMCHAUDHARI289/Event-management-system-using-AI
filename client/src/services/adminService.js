@@ -2,8 +2,8 @@ import axios from 'axios';
 import api from './api'; // adjust if needed
 
 // Base URL for admin APIs
-const API_BASE = "https://event-management-system-using-ai.onrender.com/api/admin"; // adjust if needed
-const AI_BASE = "https://event-management-system-using-ai.onrender.com/api/ai"; // adjust if needed
+const API_BASE = "http://localhost:5000/api/admin"; // adjust if needed
+const AI_BASE = "http://localhost:5000/api/ai"; // adjust if needed
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
