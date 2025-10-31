@@ -15,16 +15,6 @@ connectDB();
 
 const app = express();
 
-// ✅ Allow frontend (Vercel + local) to access backend
-app.use(
-  cors({
-    origin: [
-      "https://icem-events.vercel.app/", // 🔁 replace with your real deployed frontend URL
-      "http://localhost:5173",
-    ],
-    credentials: true,
-  })
-);
 
 // ✅ Handle large JSON bodies
 app.use(express.json({ limit: "10mb" }));
